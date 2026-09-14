@@ -1,0 +1,37 @@
+{
+  "name": "era-erp",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @era/api",
+    "dev:admin": "npm run dev -w @era/admin",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate deploy --schema packages/database/prisma/schema.prisma",
+    "db:dev": "prisma migrate dev --schema packages/database/prisma/schema.prisma",
+    "db:seed": "tsx packages/database/seed.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^12.0.2",
+    "@types/node": "^22.10.0",
+    "prettier": "^3.9.6",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1",
+    "bcryptjs": "^3.0.2"
+  },
+  "overrides": {
+    "multer": "^2.3.0",
+    "deepmerge-ts": "^8.0.0"
+  }
+}
