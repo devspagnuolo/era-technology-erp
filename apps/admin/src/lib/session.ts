@@ -32,7 +32,15 @@ export async function api<T>(
   });
   if (generation !== useSession.getState().generation)
     throw new Error("Sessão alterada. Acesse novamente.");
-  if (response.status === 401 && retry && token && !path.startsWith("auth/")) {
+  if (
+    response.status === 401 &&
+    retry &&
+    token &&
+    path !== "auth/login" &&
+    path !== "auth/refresh"
+  ) {
+    if (useSession.getState().session?.accessToken !== token)
+      return api<T>(path, init, false);
     refresh ??= (async () => {
       const session = useSession.getState().session;
       if (!session) return false;

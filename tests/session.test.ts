@@ -27,3 +27,59 @@ test("resposta antiga não atravessa uma troca de sessão", async () => {
     useSession.getState().setSession(null);
   }
 });
+
+test("logout renova token expirado e revoga a sessão atual", async () => {
+  const previousFetch = globalThis.fetch;
+  const requests: string[] = [];
+  try {
+    useSession
+      .getState()
+      .setSession({ accessToken: "expired", refreshToken: "refresh-old" });
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      requests.push(url);
+      if (url.endsWith("/auth/refresh"))
+        return new Response(
+          JSON.stringify({ accessToken: "fresh", refreshToken: "refresh-new" }),
+        );
+      const header = (init?.headers as Record<string, string>).Authorization;
+      return header === "Bearer fresh"
+        ? new Response(JSON.stringify({ ok: true }))
+        : new Response("{}", { status: 401 });
+    };
+    assert.deepEqual(await api("auth/logout", { method: "POST" }), {
+      ok: true,
+    });
+    assert.equal(
+      requests.filter((url) => url.endsWith("/auth/refresh")).length,
+      1,
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    useSession.getState().setSession(null);
+  }
+});
+test("401 atrasado reutiliza token já renovado sem nova rotação", async () => {
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+  try {
+    useSession
+      .getState()
+      .setSession({ accessToken: "old", refreshToken: "old-refresh" });
+    globalThis.fetch = async (input) => {
+      assert.ok(!String(input).endsWith("/auth/refresh"));
+      if (calls++ === 0) {
+        useSession
+          .getState()
+          .setSession({ accessToken: "new", refreshToken: "new-refresh" });
+        return new Response("{}", { status: 401 });
+      }
+      return new Response(JSON.stringify({ ok: true }));
+    };
+    assert.deepEqual(await api("products"), { ok: true });
+    assert.equal(calls, 2);
+  } finally {
+    globalThis.fetch = previousFetch;
+    useSession.getState().setSession(null);
+  }
+});

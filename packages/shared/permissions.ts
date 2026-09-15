@@ -1,6 +1,8 @@
 export const permissions = [
   "core:read",
   "branches:create",
+  "branches:update",
+  "tenant:update",
   "users:read",
   "users:create",
   "users:update",
@@ -8,6 +10,13 @@ export const permissions = [
   "products:read",
   "products:create",
   "audit:read",
+  "customers:read",
+  "customers:create",
+  "customers:update",
+  "suppliers:read",
+  "suppliers:create",
+  "suppliers:update",
+  "catalog:config", // For categories, brands, units, price tables
 ] as const;
 export type PermissionKey = (typeof permissions)[number];
 export const rolePresets: Record<

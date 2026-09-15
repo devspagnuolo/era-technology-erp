@@ -1,25 +1,12 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
-import { rateLimit } from "express-rate-limit";
-import helmet from "helmet";
 import { AppModule } from "./app.module";
+import { configureHttp } from "./http-config";
 import { ExpressAdapter } from "./http-adapter";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, new ExpressAdapter());
-  app.use(helmet());
-  app.use(
-    rateLimit({
-      windowMs: 60000,
-      limit: 60,
-      standardHeaders: "draft-8",
-      legacyHeaders: false,
-    }),
-  );
-  app.enableCors({
-    origin: process.env.ADMIN_ORIGIN ?? "http://localhost:3000",
-  });
-  app.setGlobalPrefix("v1");
+  configureHttp(app);
   app.enableShutdownHooks();
   const config = new DocumentBuilder()
     .setTitle("ERA ERP")

@@ -65,3 +65,76 @@ test(
     }
   },
 );
+
+test(
+  "chaves estrangeiras impedem referências cruzadas entre empresas",
+  { skip: !url },
+  async () => {
+    const db = new PrismaClient({ datasourceUrl: url });
+    const a = randomUUID(),
+      b = randomUUID();
+    try {
+      for (const id of [a, b])
+        await db.tenant.create({ data: { id, slug: id, name: "Isolamento" } });
+      const category = await db.category.create({
+        data: { tenantId: b, name: "Categoria B" },
+      });
+      const branch = await db.branch.create({
+        data: { tenantId: b, name: "Filial B", code: "B" },
+      });
+      const product = await db.product.create({
+        data: { tenantId: b, sku: "B", name: "Produto B", salePrice: "1.00" },
+      });
+      const priceTable = await db.priceTable.create({
+        data: { tenantId: a, name: "Tabela A" },
+      });
+      const foreignKeyFailure = (error: unknown) =>
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "P2003";
+      await assert.rejects(
+        () =>
+          db.product.create({
+            data: {
+              tenantId: a,
+              sku: "A",
+              name: "Produto A",
+              salePrice: "1.00",
+              categoryId: category.id,
+            },
+          }),
+        foreignKeyFailure,
+      );
+      await assert.rejects(
+        () =>
+          db.warehouse.create({
+            data: { tenantId: a, branchId: branch.id, name: "Depósito A" },
+          }),
+        foreignKeyFailure,
+      );
+      await assert.rejects(
+        () =>
+          db.priceTableItem.create({
+            data: {
+              tenantId: a,
+              priceTableId: priceTable.id,
+              productId: product.id,
+              price: "1.00",
+            },
+          }),
+        foreignKeyFailure,
+      );
+    } finally {
+      const tenantId = { in: [a, b] };
+      await db.priceTableItem.deleteMany({ where: { tenantId } });
+      await db.warehouse.deleteMany({ where: { tenantId } });
+      await db.product.deleteMany({ where: { tenantId } });
+      await db.priceTable.deleteMany({ where: { tenantId } });
+      await db.category.deleteMany({ where: { tenantId } });
+      await db.branch.deleteMany({ where: { tenantId } });
+      await db.tenant.deleteMany({ where: { id: { in: [a, b] } } });
+      await db.$disconnect();
+    }
+  },
+);

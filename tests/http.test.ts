@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { AppModule } from "../services/api/src/app.module";
 import { Database } from "../services/api/src/database";
+import { configureHttp } from "../services/api/src/http-config";
 import { ExpressAdapter } from "../services/api/src/http-adapter";
 test("módulos iniciam e rotas HTTP exigem sessão e permissão", async () => {
   const previousSecret = process.env.JWT_SECRET;
@@ -27,6 +28,7 @@ test("módulos iniciam e rotas HTTP exigem sessão e permissão", async () => {
         id: "session-a",
         userId: "user-a",
         tenantId: "tenant-a",
+        tenant: { active: true },
         user: { active: true, permissions: ["products:read"] },
       }),
     },
@@ -36,7 +38,7 @@ test("módulos iniciam e rotas HTTP exigem sessão e permissão", async () => {
     .useValue(db)
     .compile();
   const app = module.createNestApplication(new ExpressAdapter());
-  app.setGlobalPrefix("v1");
+  configureHttp(app, { NODE_ENV: "test" });
   try {
     await app.listen(0, "127.0.0.1");
     const base = await app.getUrl();

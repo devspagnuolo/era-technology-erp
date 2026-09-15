@@ -46,7 +46,10 @@ export class AuthService {
       z.object({
         company: z.string().min(1),
         email: z.string().email(),
-        password: z.string().min(1).max(200),
+        password: z
+          .string()
+          .min(1)
+          .refine((value) => Buffer.byteLength(value, "utf8") <= 72),
       }),
       body,
     );
@@ -64,6 +67,7 @@ export class AuthService {
         },
       }));
     if (
+      !tenant?.active ||
       !user ||
       !user.active ||
       !(await compare(input.password, user.passwordHash))
@@ -100,13 +104,14 @@ export class AuthService {
     const session = await this.db.$transaction(async (tx) => {
       const old = await tx.session.findUnique({
         where: { tokenHash: digest(refreshToken) },
-        include: { user: true },
+        include: { user: true, tenant: true },
       });
       if (
         !old ||
         old.revokedAt ||
         old.expiresAt <= new Date() ||
-        !old.user.active
+        !old.user.active ||
+        !old.tenant.active
       )
         throw new UnauthorizedException();
       const claimed = await tx.session.updateMany({
@@ -173,9 +178,10 @@ export class AccessGuard implements CanActivate {
         revokedAt: null,
         expiresAt: { gt: new Date() },
       },
-      include: { user: true },
+      include: { user: true, tenant: true },
     });
-    if (!session?.user.active) throw new UnauthorizedException();
+    if (!session?.user.active || !session.tenant.active)
+      throw new UnauthorizedException();
     request.principal = {
       tenantId: session.tenantId,
       userId: session.userId,

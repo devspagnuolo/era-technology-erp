@@ -27,5 +27,7 @@ jobs:
       - run: npm ci
       - run: npm run db:generate
       - run: npm run db:migrate
+      - name: Verify migration/schema parity
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel packages/database/prisma/schema.prisma --exit-code
       - run: npm test
       - run: npm run build

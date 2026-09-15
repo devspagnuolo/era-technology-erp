@@ -35,6 +35,21 @@ export const branchInput = z.object({
     .max(30)
     .regex(/^[A-Za-z0-9_-]+$/),
 });
+export const updateBranchInput = branchInput.partial().extend({
+  active: z.boolean().optional(),
+});
+export const tenantSettingsInput = z
+  .object({
+    locale: z.string().optional(),
+    currency: z.string().optional(),
+    timezone: z.string().optional(),
+    features: z.record(z.boolean()).optional(),
+  })
+  .strict();
+export const updateTenantInput = z.object({
+  settings: tenantSettingsInput.optional(),
+  active: z.boolean().optional(),
+});
 export const userInput = z.object({
   name: z.string().trim().min(2).max(120),
   email: z
@@ -93,6 +108,76 @@ export class CoreRepository {
         },
       });
       return branch;
+    });
+  }
+  updateBranch(
+    req: AuthRequest,
+    id: string,
+    data: z.output<typeof updateBranchInput>,
+  ) {
+    const { tenantId, userId } = req.principal;
+    return this.db.$transaction(async (tx) => {
+      const before = await tx.branch.findUnique({
+        where: { tenantId_id: { tenantId, id } },
+      });
+      if (!before) throw new NotFoundException("Filial não encontrada");
+
+      const branch = await tx.branch.update({
+        where: { tenantId_id: { tenantId, id } },
+        data,
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorId: userId,
+          ip: req.ip ?? "unknown",
+          module: "branches",
+          action: "update",
+          recordId: branch.id,
+          before,
+          after: branch,
+        },
+      });
+      return branch;
+    });
+  }
+  updateTenant(req: AuthRequest, data: z.output<typeof updateTenantInput>) {
+    const { tenantId, userId } = req.principal;
+    return this.db.$transaction(async (tx) => {
+      const before = await tx.tenant.findUnique({
+        where: { id: tenantId },
+      });
+      if (!before) throw new NotFoundException("Tenant não encontrado");
+
+      const tenant = await tx.tenant.update({
+        where: { id: tenantId },
+        data: {
+          active: data.active,
+          settings: data.settings
+            ? (data.settings as Prisma.InputJsonValue)
+            : undefined,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorId: userId,
+          ip: req.ip ?? "unknown",
+          module: "tenant",
+          action: "update",
+          recordId: tenant.id,
+          before: { ...before, createdAt: before.createdAt.toISOString() },
+          after: { ...tenant, createdAt: tenant.createdAt.toISOString() },
+        },
+      });
+      if (!tenant.active)
+        await tx.session.updateMany({
+          where: { tenantId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      return tenant;
     });
   }
   createUser(
@@ -178,6 +263,19 @@ export class CoreService {
       throw error;
     }
   }
+  async updateBranch(req: AuthRequest, id: string, raw: unknown) {
+    const data = parse(updateBranchInput, raw);
+    try {
+      return await this.repository.updateBranch(req, id, data);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      )
+        throw new ConflictException("Código de filial já cadastrado");
+      throw error;
+    }
+  }
   async createUser(req: AuthRequest, raw: unknown) {
     const input = parse(userInput, raw);
     const granted = rolePresets[input.role].permissions;
@@ -207,6 +305,10 @@ export class CoreService {
       throw new ForbiddenException("Não é permitido alterar o próprio status");
     return this.repository.setUserActive(req, id, active);
   }
+  updateTenant(req: AuthRequest, raw: unknown) {
+    const data = parse(updateTenantInput, raw);
+    return this.repository.updateTenant(req, data);
+  }
 }
 @Controller()
 export class CoreController {
@@ -222,6 +324,19 @@ export class CoreController {
     @Body() body: unknown,
   ) {
     return this.service.createBranch(req, body);
+  }
+  @Permission("tenant:update") @Patch("tenant") updateTenant(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    return this.service.updateTenant(req, body);
+  }
+  @Permission("branches:update") @Patch("branches/:id") updateBranch(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.updateBranch(req, id, body);
   }
   @Permission("users:read") @Get("users") users(@Req() req: AuthRequest) {
     return this.repository.users(req.principal.tenantId);

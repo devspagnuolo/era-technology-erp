@@ -15,7 +15,7 @@ type User = {
   role: string;
   active: boolean;
 };
-type Branch = { id: string; name: string; code: string };
+type Branch = { id: string; name: string; code: string; active: boolean };
 export function CorePanel({
   view,
   permissions,
@@ -53,6 +53,17 @@ export function CorePanel({
       void cache.invalidateQueries({ queryKey: ["audit"] });
     },
   });
+  const changeBranchStatus = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      api("branches/" + id, {
+        method: "PATCH",
+        body: JSON.stringify({ active }),
+      }),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["branches"] });
+      void cache.invalidateQueries({ queryKey: ["audit"] });
+    },
+  });
   const query =
     view === "branches" ? branches : view === "users" ? users : profiles;
   return (
@@ -85,9 +96,9 @@ export function CorePanel({
           </Button>
         )}
       </div>
-      {changeStatus.error && (
+      {(changeStatus.error || changeBranchStatus.error) && (
         <p role="alert" className="error">
-          {changeStatus.error.message}
+          {changeStatus.error?.message || changeBranchStatus.error?.message}
         </p>
       )}
       <section className="table-card table-scroll">
@@ -103,6 +114,8 @@ export function CorePanel({
               <tr>
                 <th>Nome</th>
                 <th>Código</th>
+                <th>Status</th>
+                <th>Ação</th>
               </tr>
             </thead>
             <tbody>
@@ -110,6 +123,24 @@ export function CorePanel({
                 <tr key={b.id}>
                   <td>{b.name}</td>
                   <td>{b.code}</td>
+                  <td>{b.active ? "Ativo" : "Inativo"}</td>
+                  <td>
+                    {permissions.includes("branches:update") && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={changeBranchStatus.isPending}
+                        onClick={() =>
+                          changeBranchStatus.mutate({
+                            id: b.id,
+                            active: !b.active,
+                          })
+                        }
+                      >
+                        {b.active ? "Desativar" : "Reativar"}
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

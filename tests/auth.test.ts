@@ -8,13 +8,21 @@ import {
   UnauthorizedException,
   ExecutionContext,
 } from "@nestjs/common";
-import { AccessGuard, AuthRequest } from "../services/api/src/auth";
+import {
+  AccessGuard,
+  AuthService,
+  AuthRequest,
+} from "../services/api/src/auth";
 import { Database } from "../services/api/src/database";
 import { productInput } from "../services/api/src/products";
 const jwt = new JwtService({
   secret: "unit-test-secret-longer-than-thirty-two-characters",
 });
-function fixture(permissions: string[], sessionActive = true) {
+function fixture(
+  permissions: string[],
+  sessionActive = true,
+  tenantActive = true,
+) {
   const handler = () => {};
   Reflect.defineMetadata("permission", "products:create", handler);
   const request = {
@@ -40,6 +48,7 @@ function fixture(permissions: string[], sessionActive = true) {
           ? {
               id: "session-a",
               tenantId: "tenant-a",
+              tenant: { active: tenantActive },
               userId: "user-a",
               user: { active: true, permissions },
             }
@@ -112,4 +121,55 @@ test("campos protegidos não atravessam a validação do produto", () => {
   assert.equal("id" in input, false);
   assert.equal("active" in input, false);
   assert.equal(input.unit, "UN");
+});
+
+test("empresa inativa não aceita sessão e JWT válidos", async () => {
+  const f = fixture(["products:create"], true, false);
+  await assert.rejects(
+    () => f.guard.canActivate(f.context),
+    UnauthorizedException,
+  );
+});
+
+test("empresa inativa não pode emitir novos tokens no login", async () => {
+  const db = {
+    tenant: { findUnique: async () => ({ id: "tenant-a", active: false }) },
+    user: {
+      findUnique: async () => ({
+        id: "u",
+        tenantId: "tenant-a",
+        active: true,
+        passwordHash: "unused",
+      }),
+    },
+  } as unknown as Database;
+  await assert.rejects(
+    () =>
+      new AuthService(db, jwt).login({
+        company: "a",
+        email: "a@example.com",
+        password: "valid-password",
+      }),
+    UnauthorizedException,
+  );
+});
+test("empresa inativa não pode renovar o refresh token", async () => {
+  const db = {
+    $transaction: async (callback: (tx: unknown) => unknown) =>
+      callback({
+        session: {
+          findUnique: async () => ({
+            id: "s",
+            revokedAt: null,
+            expiresAt: new Date(Date.now() + 60000),
+            user: { active: true },
+            tenant: { active: false },
+          }),
+        },
+      }),
+  } as unknown as Database;
+  await assert.rejects(
+    () => new AuthService(db, jwt).refresh({ refreshToken: "a".repeat(96) }),
+    UnauthorizedException,
+  );
 });
