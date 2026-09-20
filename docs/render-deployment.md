@@ -13,3 +13,5 @@ Antes de criar a instância, a instalação GitHub do Render precisa ter acesso 
 Depois do primeiro deploy, a criação da conta inicial precisa ser planejada com uma senha forte. O seed de desenvolvimento exige SEED_PASSWORD e não roda automaticamente neste Blueprint. Não divulgar nem versionar essa senha.
 
 Referência: https://render.com/docs/blueprint-spec
+
+Em 19/09/2026, o repositório ERA já apareceu autorizado na instalação GitHub existente do Render. Não foi necessário ampliar permissões durante essa retomada.
