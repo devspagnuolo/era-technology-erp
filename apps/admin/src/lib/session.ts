@@ -13,7 +13,9 @@ export const useSession = create<{
       generation: state.generation + (!session || !state.session ? 1 : 0),
     })),
 }));
-const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// Em produção, use o proxy /v1 do próprio Next.js. O desenvolvimento local pode
+// apontar diretamente para a API por meio de NEXT_PUBLIC_API_URL no arquivo .env.
+const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 let refresh: Promise<boolean> | null = null;
 export async function api<T>(
   path: string,

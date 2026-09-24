@@ -1,6 +1,6 @@
 # Blueprint ERA no Render
 
-O arquivo render.yaml provisiona era-admin (Next.js público), era-api (NestJS privado), era-worker (BullMQ), era-redis (Key Value persistente) e era-db (PostgreSQL 16), na região Ohio. Os planos definidos são pagos; revisar a estimativa exibida no Render antes da criação.
+O arquivo render.yaml provisiona era-admin (Next.js público), era-api (NestJS privado), era-worker (BullMQ), era-redis (Key Value persistente) e era-db (PostgreSQL 18), na região Oregon. Os planos definidos são pagos; revisar a estimativa exibida no Render antes da criação.
 
 O navegador usa /v1 no mesmo domínio do painel. O Next.js encaminha as requisições para API_INTERNAL_HOSTPORT, obtido da rede privada do Render. A API não requer uma URL pública nem configuração manual de CORS para esse fluxo. Banco e Redis não aceitam conexões externas.
 
@@ -10,7 +10,7 @@ A migration roda no pre-deploy da API. O worker pode iniciar antes dela e repeti
 
 Antes de criar a instância, a instalação GitHub do Render precisa ter acesso ao repositório privado devspagnuolo/era-technology-erp. Na inspeção inicial, esse repositório não estava na lista de quatro repositórios autorizados do workspace Fideliza+.
 
-Depois do primeiro deploy, a criação da conta inicial precisa ser planejada com uma senha forte. O seed de desenvolvimento exige SEED_PASSWORD e não roda automaticamente neste Blueprint. Não divulgar nem versionar essa senha.
+No primeiro deploy, o Render gera SEED_PASSWORD e o pre-deploy cria a conta inicial. O seed é idempotente e não altera a senha de usuários existentes. Consulte o valor de SEED_PASSWORD no ambiente privado de era-api para acessar a demo; não divulgar nem versionar essa senha.
 
 Referência: https://render.com/docs/blueprint-spec
 
