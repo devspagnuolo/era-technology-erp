@@ -2,7 +2,7 @@
 
 O arquivo render.yaml provisiona era-admin (Next.js público), era-api (NestJS privado), era-worker (BullMQ), era-redis (Key Value persistente) e era-db (PostgreSQL 18), na região Oregon. Os planos definidos são pagos; revisar a estimativa exibida no Render antes da criação.
 
-O navegador usa /v1 no mesmo domínio do painel. O Next.js encaminha as requisições para API_INTERNAL_HOSTPORT, obtido da rede privada do Render. A API não requer uma URL pública nem configuração manual de CORS para esse fluxo. Banco e Redis não aceitam conexões externas.
+O navegador usa /v1 no mesmo domínio do painel. Uma rota do Next.js encaminha as requisições em tempo de execução para API_INTERNAL_HOSTPORT, obtido da rede privada do Render. A API não requer uma URL pública nem configuração manual de CORS para esse fluxo. Banco e Redis não aceitam conexões externas.
 
 O Render gera JWT_SECRET. DATABASE_URL e REDIS_URL são vinculadas diretamente aos recursos. Nenhum segredo é armazenado no Git. npm ci --include=dev preserva TypeScript, Prisma CLI e ferramentas necessárias aos builds e migrations.
 
