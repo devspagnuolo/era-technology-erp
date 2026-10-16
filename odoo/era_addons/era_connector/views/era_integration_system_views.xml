@@ -1,0 +1,11 @@
+<odoo>
+  <record id="era_integration_system_view_tree" model="ir.ui.view">
+    <field name="name">era.integration.system.tree</field>
+    <field name="model">era.integration.system</field>
+    <field name="arch" type="xml"><list><field name="name"/><field name="code"/><field name="active"/></list></field>
+  </record>
+  <record id="era_integration_system_action" model="ir.actions.act_window">
+    <field name="name">Integrações ERA</field><field name="res_model">era.integration.system</field><field name="view_mode">list,form</field>
+  </record>
+  <menuitem id="era_integration_system_menu" name="Integrações ERA" parent="base.menu_administration" action="era_integration_system_action" groups="base.group_system"/>
+</odoo>

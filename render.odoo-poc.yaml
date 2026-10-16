@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: era-odoo-poc
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: feat/odoo-community-poc
+    dockerfilePath: ./odoo/Dockerfile
+    dockerContext: .
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: HOST
+        fromDatabase: { name: era-odoo-poc-db, property: host }
+      - key: USER
+        fromDatabase: { name: era-odoo-poc-db, property: user }
+      - key: PASSWORD
+        fromDatabase: { name: era-odoo-poc-db, property: password }
+      - key: ODOO_DB_NAME
+        value: era_odoo_poc_db
+      - key: ODOO_MASTER_PASSWORD
+        generateValue: true
+      - key: ODOO_ADMIN_PASSWORD
+        generateValue: true
+      - key: ODOO_RUN_INIT
+        value: "true"
+      - key: ODOO_INIT_MODULES
+        value: base,l10n_br_base,era_connector
+databases:
+  - name: era-odoo-poc-db
+    databaseName: era_odoo_poc_db
+    user: era_odoo_poc_db_user
+    plan: free
+    region: virginia
+    postgresMajorVersion: "16"
