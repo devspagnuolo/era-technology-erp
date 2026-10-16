@@ -7,8 +7,8 @@ set -eu
 : "${ODOO_MASTER_PASSWORD:?ODOO_MASTER_PASSWORD is required}"
 : "${ODOO_ADMIN_PASSWORD:?ODOO_ADMIN_PASSWORD is required}"
 export PGHOST="$HOST" PGUSER="$USER" PGPASSWORD="$PASSWORD"
-printf '\nadmin_passwd = %s\n' "$ODOO_MASTER_PASSWORD" >> /tmp/odoo.conf
-cat /etc/odoo/odoo.conf >> /tmp/odoo.conf
+cp /etc/odoo/odoo.conf /tmp/odoo.conf
+printf 'admin_passwd = %s\n' "$ODOO_MASTER_PASSWORD" >> /tmp/odoo.conf
 if [ "${ODOO_RUN_INIT:-false}" = "true" ]; then
   odoo -c /tmp/odoo.conf -d "$ODOO_DB_NAME" -i "${ODOO_INIT_MODULES:-base,l10n_br_base,era_connector}" --stop-after-init
 fi
