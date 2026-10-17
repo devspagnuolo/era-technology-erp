@@ -8,8 +8,26 @@ set -eu
 : "${ODOO_ADMIN_PASSWORD:?ODOO_ADMIN_PASSWORD is required}"
 export PGHOST="$HOST" PGUSER="$USER" PGPASSWORD="$PASSWORD"
 cp /etc/odoo/odoo.conf /tmp/odoo.conf
-printf 'admin_passwd = %s\n' "$ODOO_MASTER_PASSWORD" >> /tmp/odoo.conf
+printf 'admin_passwd = %s\\n' "$ODOO_MASTER_PASSWORD" >> /tmp/odoo.conf
 if [ "${ODOO_RUN_INIT:-false}" = "true" ]; then
   odoo -c /tmp/odoo.conf -d "$ODOO_DB_NAME" -i "${ODOO_INIT_MODULES:-base,l10n_br_base,era_connector}" --stop-after-init
 fi
+
+# Apply an explicitly requested admin password recovery once per database.
+# Odoo shell executes stdin in non-interactive mode; commit before its automatic rollback.
+if [ "${ODOO_RESET_ADMIN_PASSWORD_ONCE:-false}" = "true" ]; then
+  odoo shell -c /tmp/odoo.conf -d "$ODOO_DB_NAME" <<'PY'
+import os
+
+params = env['ir.config_parameter'].sudo()
+marker = 'era.admin_password_reset_once_20261017'
+if params.get_param(marker) != 'done':
+    env.ref('base.user_admin').sudo().write({
+        'password': os.environ['ODOO_ADMIN_PASSWORD'],
+    })
+    params.set_param(marker, 'done')
+    env.cr.commit()
+PY
+fi
+
 exec odoo -c /tmp/odoo.conf -d "$ODOO_DB_NAME" --http-port "${PORT:-8069}"
