@@ -106,70 +106,64 @@ function Login() {
     onSuccess: setSession,
   });
   return (
-    <main className="login">
-      <section className="login-story">
+    <main className="login login-erp">
+      <header className="login-erp-header">
         <EraLogo className="login-logo" />
-        <p className="eyebrow">ERP ERA · ODOO COMO MOTOR</p>
-        <h1>
-          ERA ERP
-        </h1>
-        <p>
-          Gestão empresarial com os dados operacionais no Odoo.
-        </p>
-        <div className="login-foot">
-          <Layers3 size={20} /> Comercial, operações e administração em um só lugar.
+      </header>
+      <section className="login-form" aria-labelledby="login-title">
+        <div className="login-panel">
+          <div className="login-panel-heading">
+            <h1 id="login-title">Acesso ao ERA ERP</h1>
+            <p>Informe suas credenciais para entrar no sistema.</p>
+          </div>
+          <form onSubmit={handleSubmit((data) => login.mutate(data))}>
+            <label>
+              Empresa
+              <input
+                {...register("company", { required: true })}
+                autoComplete="organization"
+                required
+              />
+            </label>
+            <label>
+              E-mail
+              <input
+                type="email"
+                {...register("email", { required: true })}
+                autoComplete="username"
+                required
+              />
+            </label>
+            <label>
+              Senha
+              <input
+                type="password"
+                {...register("password", { required: true })}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            {login.error && (
+              <p role="alert" className="error">
+                {login.error.message}
+              </p>
+            )}
+            <Button type="submit" className="w-full login-submit" disabled={login.isPending}>
+              {login.isPending ? "Entrando…" : "Acessar empresa"}
+              <ArrowUpRight size={16} />
+            </Button>
+            <small>
+              <ShieldCheck size={14} /> Acesso seguro ao ambiente da sua empresa
+            </small>
+            <small className="login-odoo-note">
+              O acesso ao Odoo pode solicitar um login separado.
+            </small>
+          </form>
         </div>
       </section>
-      <section className="login-form">
-        <form onSubmit={handleSubmit((data) => login.mutate(data))}>
-          <div className="icon-tile">
-            <Building2 />
-          </div>
-          <h2>Acesso ao ERA ERP</h2>
-          <p>Informe suas credenciais para entrar no sistema.</p>
-          <label>
-            Empresa
-            <input
-              {...register("company", { required: true })}
-              autoComplete="organization"
-              required
-            />
-          </label>
-          <label>
-            E-mail
-            <input
-              type="email"
-              {...register("email", { required: true })}
-              autoComplete="username"
-              required
-            />
-          </label>
-          <label>
-            Senha
-            <input
-              type="password"
-              {...register("password", { required: true })}
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          {login.error && (
-            <p role="alert" className="error">
-              {login.error.message}
-            </p>
-          )}
-          <Button className="w-full mt-3" disabled={login.isPending}>
-            {login.isPending ? "Entrando…" : "Acessar empresa"}
-            <ArrowUpRight size={16} />
-          </Button>
-          <small>
-            <ShieldCheck size={14} /> Acesso seguro ao ambiente da sua empresa
-          </small>
-          <small className="login-odoo-note">
-            O acesso ao Odoo pode solicitar um login separado.
-          </small>
-        </form>
-      </section>
+      <svg className="login-wave" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 86 C300 94 530 66 760 56 C1040 36 1190 46 1440 72 L1440 120 L0 120 Z" fill="#079ff0" />
+      </svg>
     </main>
   );
 }
