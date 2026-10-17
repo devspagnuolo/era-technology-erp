@@ -4,11 +4,11 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 const variants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700",
+  "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
   {
     variants: {
       variant: {
-        default: "bg-emerald-800 text-white hover:bg-emerald-900",
+        default: "bg-[#075ccf] text-white hover:bg-[#084ca8]",
         outline:
           "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
       },
