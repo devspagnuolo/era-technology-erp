@@ -22,6 +22,7 @@ export type FieldDef = {
   widget?: string;
   required: boolean;
   requiredIf?: string;
+  hidden?: boolean;
   readonly: boolean;
   readonlyIf?: string;
   invisibleIf?: string;
@@ -111,7 +112,8 @@ function payloadValue(def: FieldDef, value: unknown): unknown {
     return Array.isArray(value)
       ? (value as Values[]).map((row) => {
           const out: Values = typeof row.id === "number" ? { id: row.id } : {};
-          for (const name of def.sub!.columns)
+          // Colunas e campos ocultos da tela (preenchidos pelo Odoo).
+          for (const name of Object.keys(def.sub!.fields))
             if (name in row)
               out[name] = payloadValue(def.sub!.fields[name], row[name]);
           return out;
