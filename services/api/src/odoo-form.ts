@@ -163,8 +163,20 @@ export function buildSchema(
     off = false,
   ) => {
     const attrs = node.attrs;
-    if (node.tag === "header" || node.tag === "button" || node.tag === "widget")
+    // Do cabeçalho só vem a etapa clicável (ex.: estágio do CRM, da tarefa),
+    // que vira um campo comum; botões e situações fixas ficam de fora.
+    if (node.tag === "header") {
+      for (const child of stages(node, meta))
+        walk(
+          { ...child, attrs: { ...child.attrs, widget: "stage" } },
+          section,
+          "Etapa",
+          invisible,
+          off,
+        );
       return;
+    }
+    if (node.tag === "button" || node.tag === "widget") return;
     if (
       attrs.name === "button_box" ||
       (attrs.class ?? "").split(/\s+/).includes("oe_button_box") ||
@@ -260,6 +272,18 @@ export function buildSchema(
     fields,
     deps: dependencies(fields, meta),
   };
+}
+
+function stages(node: ArchNode, meta: Record<string, Meta>): ArchNode[] {
+  if (node.tag !== "field")
+    return node.children.flatMap((c) => stages(c, meta));
+  const { name, widget, options } = node.attrs;
+  const clickable = /['"]clickable['"]\s*:\s*(['"]?1['"]?|True)/;
+  return /^statusbar/.test(widget ?? "") &&
+    meta[name]?.type === "many2one" &&
+    clickable.test(options ?? "")
+    ? [node]
+    : [];
 }
 
 function fieldDef(

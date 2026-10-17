@@ -30,6 +30,19 @@ export const permissions = [
   "invoices:create",
   "invoices:update",
   "invoices:post",
+  "crm:read",
+  "crm:create",
+  "crm:update",
+  "manufacturing:read",
+  "manufacturing:create",
+  "manufacturing:update",
+  "manufacturing:produce",
+  "projects:read",
+  "projects:create",
+  "projects:update",
+  "employees:read",
+  "employees:create",
+  "employees:update",
   "customers:read",
   "customers:create",
   "customers:update",
@@ -68,6 +81,23 @@ const invoicesFull: PermissionKey[] = [
   "invoices:update",
   "invoices:post",
 ];
+const crmFull: PermissionKey[] = ["crm:read", "crm:create", "crm:update"];
+const manufacturingFull: PermissionKey[] = [
+  "manufacturing:read",
+  "manufacturing:create",
+  "manufacturing:update",
+  "manufacturing:produce",
+];
+const projectsFull: PermissionKey[] = [
+  "projects:read",
+  "projects:create",
+  "projects:update",
+];
+const employeesFull: PermissionKey[] = [
+  "employees:read",
+  "employees:create",
+  "employees:update",
+];
 export const rolePresets: Record<
   string,
   { label: string; permissions: PermissionKey[] }
@@ -87,6 +117,10 @@ export const rolePresets: Record<
       ...purchasesFull,
       ...inventoryFull,
       ...invoicesFull,
+      ...crmFull,
+      ...manufacturingFull,
+      ...projectsFull,
+      ...employeesFull,
       "audit:read",
     ],
   },
@@ -101,6 +135,10 @@ export const rolePresets: Record<
       ...salesFull,
       ...purchasesFull,
       ...inventoryFull,
+      ...crmFull,
+      ...manufacturingFull,
+      ...projectsFull,
+      "employees:read",
     ],
   },
   OPERATOR: {
@@ -110,6 +148,8 @@ export const rolePresets: Record<
       "contacts:read",
       "sales:read",
       "inventory:read",
+      "manufacturing:read",
+      "projects:read",
     ],
   },
   FINANCIAL: {
@@ -128,11 +168,16 @@ export const rolePresets: Record<
   },
   COMMERCIAL: {
     label: "Comercial",
-    permissions: ["products:read", ...contactsFull, ...salesFull],
+    permissions: ["products:read", ...contactsFull, ...salesFull, ...crmFull],
   },
   INVENTORY: {
     label: "Estoque",
-    permissions: ["products:read", "contacts:read", ...inventoryFull],
+    permissions: [
+      "products:read",
+      "contacts:read",
+      ...inventoryFull,
+      ...manufacturingFull,
+    ],
   },
   PURCHASES: {
     label: "Compras",

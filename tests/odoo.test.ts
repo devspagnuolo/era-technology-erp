@@ -16,6 +16,8 @@ import { toEra } from "../services/api/src/odoo-products";
 import { stageOf } from "../services/api/src/odoo-orders";
 import { SALES } from "../services/api/src/odoo-sales";
 import { PURCHASES } from "../services/api/src/odoo-purchases";
+import { leadOutcome } from "../services/api/src/odoo-crm";
+import { productionStage } from "../services/api/src/odoo-manufacturing";
 import { parseArch } from "../services/api/src/odoo-arch";
 import {
   buildSchema,
@@ -300,4 +302,42 @@ test("gravação aceita só campos da tela e vira comandos do Odoo", () => {
       ),
     /não pertence/,
   );
+});
+
+test("etapa clicável do cabeçalho vira campo; situação fixa não", () => {
+  const arch = `<form><header>
+    <button name="action_set_won" type="object"/>
+    <field name="stage_id" widget="statusbar_duration" options="{'clickable': '1'}"/>
+    <field name="state" widget="statusbar"/>
+    <field name="locked_stage_id" widget="statusbar"/>
+  </header><sheet><field name="name"/></sheet></form>`;
+  const meta = (name: string, type: string) => ({ name, type, string: name });
+  const schema = buildSchema(
+    "x.lead",
+    parseArch(arch),
+    {
+      "x.lead": {
+        fields: {
+          name: meta("name", "char"),
+          stage_id: { ...meta("stage_id", "many2one"), relation: "x.stage" },
+          state: meta("state", "selection"),
+          locked_stage_id: meta("locked_stage_id", "many2one"),
+        },
+      },
+    },
+    {},
+  );
+  assert.deepEqual(schema.sections[0].fields, ["stage_id", "name"]);
+  assert.equal(schema.fields.stage_id.group, "Etapa");
+  assert.equal(schema.fields.state, undefined);
+  assert.equal(schema.fields.locked_stage_id, undefined);
+});
+
+test("crm e fabricação: resultado da oportunidade e etapa da produção", () => {
+  assert.equal(leadOutcome({ active: false, probability: 0 }), "lost");
+  assert.equal(leadOutcome({ active: true, probability: 100 }), "won");
+  assert.equal(leadOutcome({ active: true, probability: 40 }), "open");
+  assert.equal(productionStage("to_close"), "progress");
+  assert.equal(productionStage("cancel"), "cancelled");
+  assert.equal(productionStage("confirmed"), "confirmed");
 });
