@@ -54,12 +54,13 @@ export class OdooRecords {
   }
 
   // Formulário para novo registro (valores padrão do Odoo) ou existente.
-  async form(req: AuthRequest, id?: number) {
+  // "context" leva padrões do Odoo (ex.: default_picking_type_id).
+  async form(req: AuthRequest, id?: number, context: Values = {}) {
     const companyId = await this.scope.company(req);
     const schema = await this.schema(companyId);
     const values = id
       ? await this.find(companyId, schema, id)
-      : await this.forms.defaults(companyId, schema);
+      : await this.forms.defaults(companyId, schema, context);
     return { schema, values };
   }
 

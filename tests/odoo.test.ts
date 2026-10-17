@@ -231,7 +231,9 @@ test("formulário vem da tela do Odoo: abas, grupos, condições e itens", () =>
   assert.equal(line_ids.invisibleIf, "state == 'cancel'");
   // Situação (barra de status), botões e campos ocultos ficam fora.
   assert.equal(schema.fields.state, undefined);
-  assert.equal(schema.fields.secret, undefined);
+  // Campo oculto na tela: fora das abas, mas acompanha o registro.
+  assert.equal(schema.fields.secret.hidden, true);
+  assert.ok(!schema.sections.some((s) => s.fields.includes("secret")));
   assert.deepEqual(schema.deps, ["state"]);
   const sub = line_ids.sub!;
   assert.equal(sub.inverse, "order_id");
@@ -257,7 +259,7 @@ test("gravação aceita só campos da tela e vira comandos do Odoo", () => {
     /Campo não permitido: company_id/,
   );
   assert.throws(
-    () => toOdooValues(schema.fields, { secret: "x" }, {}, refs),
+    () => toOdooValues(schema.fields, { state: "x" }, {}, refs),
     /Campo não permitido/,
   );
   const current = {

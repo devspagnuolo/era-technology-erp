@@ -21,6 +21,9 @@ export type FieldDef = {
   widget?: string;
   required: boolean;
   requiredIf?: string;
+  // Campo oculto na tela do Odoo: não aparece, mas acompanha o registro
+  // (preenchido pelo recálculo do Odoo e gravado), como no Odoo.
+  hidden?: boolean;
   readonly: boolean;
   readonlyIf?: string;
   invisibleIf?: string;
@@ -157,9 +160,9 @@ export function buildSchema(
     section: string,
     group: string | undefined,
     invisible: string | undefined,
+    off = false,
   ) => {
     const attrs = node.attrs;
-    if (isStatic(attrs.invisible)) return;
     if (node.tag === "header" || node.tag === "button" || node.tag === "widget")
       return;
     if (
@@ -169,6 +172,14 @@ export function buildSchema(
     )
       return;
     if (node.tag === "chatter") return;
+    off = off || isStatic(attrs.invisible);
+    if (off) {
+      if (node.tag === "field") keepHidden(attrs);
+      else
+        for (const child of node.children)
+          walk(child, section, group, undefined, true);
+      return;
+    }
     const ownInvisible =
       attrs.invisible && !NEVER.includes(attrs.invisible.trim())
         ? attrs.invisible
@@ -202,7 +213,8 @@ export function buildSchema(
       }
     }
     const existing = fields[name];
-    if (existing) {
+    if (existing?.hidden) delete fields[name];
+    else if (existing) {
       // Campo repetido com condições diferentes: visível se qualquer um estiver.
       existing.invisibleIf = andExpr(existing.invisibleIf, def.invisibleIf);
       return;
@@ -210,6 +222,18 @@ export function buildSchema(
     fields[name] = def;
     order.push({ section, name });
   };
+  // Campos sempre ocultos: só os simples (sem listas nem arquivos).
+  function keepHidden(attrs: Record<string, string>) {
+    const name = attrs.name;
+    const info = meta[name];
+    if (!info || fields[name] || hidden.has(name)) return;
+    if (!SUPPORTED.has(info.type) || ["one2many", "binary"].includes(info.type))
+      return;
+    fields[name] = {
+      ...fieldDef(info, attrs, "", undefined, undefined),
+      hidden: true,
+    };
+  }
   walk(arch, "Geral", undefined, undefined);
 
   const relabel = (defs: Record<string, FieldDef>) => {
@@ -287,15 +311,24 @@ function subSchema(
   const columns: string[] = [];
   const walk = (node: ArchNode) => {
     const attrs = node.attrs;
-    if (isStatic(attrs.invisible) || isStatic(attrs.column_invisible)) return;
     if (node.tag === "button" || node.tag === "header" || node.tag === "widget")
       return;
     if (node.tag === "field") {
       const sub = meta[attrs.name];
       if (!sub || !SUPPORTED.has(sub.type)) return;
       if (sub.type === "one2many" || sub.type === "binary") return;
+      if (isStatic(attrs.invisible) || isStatic(attrs.column_invisible)) {
+        if (sub.name === info.relation_field || fields[sub.name]) return;
+        if (hidden.has(sub.name)) return;
+        fields[sub.name] = {
+          ...fieldDef(sub, attrs, "", undefined, undefined),
+          hidden: true,
+        };
+        return;
+      }
       if (attrs.widget && SKIPPED_WIDGETS.has(attrs.widget)) return;
-      if (sub.name === info.relation_field || fields[sub.name]) return;
+      if (sub.name === info.relation_field) return;
+      if (fields[sub.name] && !fields[sub.name].hidden) return;
       if (hidden.has(sub.name)) return;
       const invisible =
         attrs.invisible && !NEVER.includes(attrs.invisible.trim())

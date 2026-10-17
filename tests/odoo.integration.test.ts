@@ -13,6 +13,7 @@ import { OdooProducts } from "../services/api/src/odoo-products";
 import { OdooContacts } from "../services/api/src/odoo-contacts";
 import { OdooSales } from "../services/api/src/odoo-sales";
 import { OdooPurchases } from "../services/api/src/odoo-purchases";
+import { OdooTransfers } from "../services/api/src/odoo-transfers";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooStatusController } from "../services/api/src/odoo-status";
@@ -69,6 +70,7 @@ const services = (scope: OdooScope) => {
     contacts: new OdooContacts(scope, forms),
     sales: new OdooSales(scope, forms).orders,
     purchases: new OdooPurchases(scope, forms).orders,
+    transfers: new OdooTransfers(scope, forms),
   };
 };
 
@@ -363,6 +365,124 @@ test(
         .filter((e) => e.recordId.startsWith("purchase.order:"))
         .map((e) => e.action),
       ["create", "confirm", "cancel", "reopen"],
+    );
+  },
+);
+
+test(
+  "estoque: recebimento e entrega movem o saldo no Odoo",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const audits: Array<{ action: string; recordId: string }> = [];
+    const { contacts, products, transfers } = services(
+      scopeFor(fakeDb(audits), companies),
+    );
+    const tag = randomUUID().slice(0, 8);
+    const partner = await contacts.records.create(as(a), {
+      values: { name: "Parceiro " + tag },
+    });
+    const sku = "EST-" + tag;
+    const productForm = await products.records.form(as(a));
+    assert.ok(productForm.schema.fields.is_storable);
+    await products.records.create(as(a), {
+      values: {
+        name: "Estocável " + tag,
+        default_code: sku,
+        is_storable: true,
+      },
+    });
+    const move = async (kind: "incoming" | "outgoing", qty: number) => {
+      const blank = await transfers.form(as(a), undefined, { kind });
+      assert.ok(blank.values.picking_type_id);
+      const [variant] = (await transfers.records.lookup(as(a), {
+        field: "move_ids_without_package",
+        q: tag,
+        values: blank.values,
+        line: { field: "product_id", values: {} },
+      })) as Ref[];
+      assert.ok(variant);
+      // Como no painel: o Odoo completa o item (descrição, unidade) ao
+      // escolher o produto.
+      const { line: filled } = (await transfers.records.onchange(as(a), {
+        values: { ...blank.values, partner_id: partner.id },
+        field: "move_ids_without_package",
+        line: { values: { product_id: variant.id }, field: "product_id" },
+      })) as { line: Record<string, unknown> };
+      const lineFields =
+        blank.schema.fields.move_ids_without_package.sub!.fields;
+      assert.equal(lineFields.name?.hidden, true);
+      const line = Object.fromEntries(
+        Object.entries(filled)
+          .filter(([k]) => k in lineFields)
+          .map(([k, v]) => [
+            k,
+            v && typeof v === "object" && "id" in v ? (v as Ref).id : v,
+          ]),
+      );
+      const created = await transfers.records.create(as(a), {
+        values: {
+          picking_type_id: (blank.values.picking_type_id as Ref).id,
+          partner_id: partner.id,
+          origin: "TESTE-" + tag,
+          move_ids_without_package: [
+            { ...line, product_id: variant.id, product_uom_qty: qty },
+          ],
+        },
+      });
+      const id = created.id as number;
+      assert.equal((await transfers.summary(as(a), id)).stage, "draft");
+      await transfers.run(as(a), id, "confirm");
+      if (kind === "outgoing") await transfers.run(as(a), id, "assign");
+      assert.equal((await transfers.summary(as(a), id)).stage, "ready");
+      const done = await transfers.run(as(a), id, "validate");
+      assert.equal(done.stage, "done");
+      return id;
+    };
+    const receipt = await move("incoming", 5);
+    const stock = async () =>
+      (await products.list(as(a), { q: sku })).items[0].quantity;
+    assert.equal(await stock(), 5);
+    await assert.rejects(
+      () => transfers.form(as(b), receipt),
+      NotFoundException,
+    );
+    const listed = await transfers.list(as(a), {
+      kind: "incoming",
+      q: "TESTE-" + tag,
+      stage: "done",
+    });
+    assert.equal(listed.total, 1);
+    assert.equal(
+      (
+        await transfers.list(as(b), {
+          kind: "incoming",
+          q: "TESTE-" + tag,
+          stage: "all",
+        })
+      ).total,
+      0,
+    );
+    await move("outgoing", 2);
+    assert.equal(await stock(), 3);
+    await assert.rejects(
+      () => transfers.run(as(a), receipt, "validate"),
+      UnprocessableEntityException,
+    );
+    assert.deepEqual(
+      audits
+        .filter((e) => e.recordId.startsWith("stock.picking:"))
+        .map((e) => e.action),
+      [
+        "create",
+        "confirm",
+        "validate",
+        "create",
+        "confirm",
+        "assign",
+        "validate",
+      ],
     );
   },
 );

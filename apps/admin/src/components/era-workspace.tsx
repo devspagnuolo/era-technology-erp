@@ -32,6 +32,7 @@ export type EraView =
   | "contacts"
   | "sales"
   | "purchases"
+  | "inventory"
   | "audit"
   | "users"
   | "branches"

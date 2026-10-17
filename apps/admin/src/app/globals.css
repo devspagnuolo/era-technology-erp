@@ -1778,3 +1778,19 @@ label > textarea {
   }
 }
 .form-actions { flex-wrap: wrap; }
+.badge.stage-draft {
+  background: #f2efec;
+  color: #6f6359;
+}
+.badge.stage-waiting {
+  background: #fdf3dc;
+  color: #94690f;
+}
+.badge.stage-ready {
+  background: #e3effa;
+  color: #2d63a0;
+}
+.badge.stage-done {
+  background: #eaf6ed;
+  color: #398451;
+}

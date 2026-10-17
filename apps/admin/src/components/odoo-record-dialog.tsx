@@ -21,6 +21,7 @@ export type RecordForm<Extra = object> = {
 export function OdooRecordDialog<Extra = object>({
   endpoint,
   recordId,
+  newQuery,
   eyebrow,
   title,
   canEdit,
@@ -35,6 +36,8 @@ export function OdooRecordDialog<Extra = object>({
 }: {
   endpoint: string;
   recordId?: number;
+  // Parâmetros do formulário de novo registro (ex.: tipo de operação).
+  newQuery?: string;
   eyebrow: string;
   title: (form: RecordForm<Extra> | undefined) => string;
   canEdit: boolean;
@@ -57,12 +60,15 @@ export function OdooRecordDialog<Extra = object>({
     dialog.current?.showModal();
   }, []);
   const cache = useQueryClient();
-  const key = ["odoo-form", endpoint, recordId ?? "new"];
+  const key = ["odoo-form", endpoint, recordId ?? "new", newQuery];
   const form = useQuery({
     queryKey: key,
     queryFn: () =>
       api<RecordForm<Extra>>(
-        endpoint + (recordId ? "/" + recordId : "") + "/form",
+        endpoint +
+          (recordId
+            ? "/" + recordId + "/form"
+            : "/form" + (newQuery ? "?" + newQuery : "")),
       ),
     staleTime: 0,
     gcTime: 0,
