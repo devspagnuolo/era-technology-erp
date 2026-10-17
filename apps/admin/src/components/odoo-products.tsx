@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { api } from "../lib/session";
 import { Button } from "./ui/button";
+import { OdooUnavailable, useOdooStatus } from "./odoo-status";
 
 type Ref = { id: number; name: string } | null;
 export type OdooProduct = {
@@ -31,12 +32,6 @@ export type OdooProduct = {
   tracksStock: boolean;
   quantity: number | null;
   active: boolean;
-};
-type Status = {
-  configured: boolean;
-  connected: boolean;
-  linked: boolean;
-  version?: string;
 };
 type Options = {
   categories: Array<{ id: number; name: string }>;
@@ -76,11 +71,7 @@ export function OdooProducts({
   const [editing, setEditing] = useState<OdooProduct | "new" | null>(null);
   const canCreate = permissions.includes("products:create");
   const canUpdate = permissions.includes("products:update");
-  const integration = useQuery({
-    queryKey: ["odoo-status"],
-    queryFn: () => api<Status>("odoo/status"),
-  });
-  const ready = !!integration.data?.connected && !!integration.data.linked;
+  const { status: integration, ready } = useOdooStatus();
   const products = useQuery({
     queryKey: ["odoo-products", q, status, page],
     queryFn: () =>
@@ -119,35 +110,8 @@ export function OdooProducts({
           </Button>
         )}
       </div>
-      {integration.isPending ? (
-        <div className="empty">Conectando ao Odoo…</div>
-      ) : !ready ? (
-        <section className="era-odoo-handoff" role="status">
-          <div className="era-handoff-icon">
-            <Package size={24} />
-          </div>
-          <span className="era-eyebrow">INTEGRAÇÃO ODOO</span>
-          <h1>
-            {integration.error
-              ? "Não foi possível verificar a integração"
-              : !integration.data?.configured
-                ? "Integração ainda não configurada"
-                : !integration.data.linked
-                  ? "Empresa sem vínculo no Odoo"
-                  : "Odoo indisponível no momento"}
-          </h1>
-          <p>
-            {integration.error?.message ??
-              (!integration.data?.configured
-                ? "O administrador precisa informar o endereço do Odoo e a chave do usuário de integração na API ERA."
-                : !integration.data.linked
-                  ? "Esta empresa ERA ainda não foi associada a uma empresa do Odoo pelo administrador."
-                  : "Tente novamente em instantes. Se o Odoo estiver hibernando, a primeira resposta pode demorar.")}
-          </p>
-          <Button variant="outline" onClick={() => integration.refetch()}>
-            Tentar novamente
-          </Button>
-        </section>
+      {!ready ? (
+        <OdooUnavailable status={integration} icon={<Package size={24} />} />
       ) : (
         <>
           <div className="catalog-summary">

@@ -12,7 +12,7 @@ Navegador → painel ERA (/v1) → API ERA ──JSON-RPC──→ Odoo
 
 - A API ERA autentica no Odoo com um **usuário técnico** e uma **chave de API** do Odoo. A chave fica só no ambiente da API; o navegador nunca a recebe.
 - Cada empresa ERA (slug do login) é vinculada a uma empresa Odoo (`res.company`) em `ODOO_TENANT_COMPANIES`. Toda leitura e gravação usa somente essa empresa; empresa ERA sem vínculo não acessa dados do Odoo.
-- As permissões ERA (`products:read`, `products:create`, `products:update`) decidem o que cada pessoa pode fazer na tela. O usuário técnico do Odoo limita o que a integração inteira pode fazer.
+- As permissões ERA (`products:*`, `contacts:*`) decidem o que cada pessoa pode fazer na tela. O usuário técnico do Odoo limita o que a integração inteira pode fazer.
 - Cada criação, edição ou arquivamento é registrado na auditoria ERA com antes/depois e o identificador `product.template:<id>`.
 - Erros de regra do Odoo (validação, acesso) aparecem para o usuário; erros internos aparecem como mensagem genérica.
 
@@ -21,8 +21,9 @@ Navegador → painel ERA (/v1) → API ERA ──JSON-RPC──→ Odoo
 | Área | Modelo Odoo | ERA |
 |---|---|---|
 | Produtos | `product.template` | consultar, buscar (nome, SKU, código de barras), cadastrar, editar, arquivar/restaurar; categoria e unidade vêm do Odoo; estoque disponível quando o Inventário está instalado |
+| Clientes e fornecedores | `res.partner` | consultar, buscar (nome, CPF/CNPJ, e-mail, telefone), filtrar clientes/fornecedores, cadastrar, editar, arquivar/restaurar; CPF/CNPJ único por empresa; papéis de cliente/fornecedor exigem o Faturamento (`account`) |
 
-Rotas: `GET /v1/odoo/status`, `GET /v1/odoo/products`, `GET /v1/odoo/products/options`, `POST /v1/odoo/products`, `PATCH /v1/odoo/products/:id`.
+Rotas: `GET /v1/odoo/status` (qualquer usuário autenticado), `GET|POST /v1/odoo/contacts`, `PATCH /v1/odoo/contacts/:id`, `GET /v1/odoo/products`, `GET /v1/odoo/products/options`, `POST /v1/odoo/products`, `PATCH /v1/odoo/products/:id`.
 
 ## Configurar no Odoo publicado
 
@@ -44,9 +45,9 @@ O teste `tests/odoo.integration.test.ts` roda contra um Odoo de teste quando `TE
 ## Limites conhecidos
 
 - SKU único por empresa é verificado pela ERA antes de gravar; duas gravações simultâneas com o mesmo SKU ainda podem passar, porque o Odoo não impõe essa unicidade.
-- Produtos compartilhados entre empresas (sem empresa no Odoo) não aparecem na ERA.
+- Produtos e contatos compartilhados entre empresas (sem empresa no Odoo) não aparecem na ERA; endereços filhos de um contato também não.
 - O catálogo antigo da API ERA (`/v1/products`, PostgreSQL ERA) continua no código como protótipo e não é usado pela tela.
 
 ## Próximos módulos
 
-Seguir o mesmo padrão (cliente Odoo + tela ERA + auditoria + teste contra Odoo): contatos (clientes/fornecedores, `res.partner`), pedidos de venda (`sale.order`), compras (`purchase.order`), movimentações e saldos de estoque, contas a receber/pagar (`account.move`).
+Seguir o mesmo padrão (`OdooScope` + tela ERA + auditoria + teste contra Odoo): pedidos de venda (`sale.order`), compras (`purchase.order`), movimentações e saldos de estoque, contas a receber/pagar (`account.move`).
