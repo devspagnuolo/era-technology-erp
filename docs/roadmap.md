@@ -1,33 +1,33 @@
-# Plano de implementação
+# Roadmap ERA ERP
 
-## Entregue nesta base
+## Regra de escopo
 
-- Estrutura inicial do monorepo e configuração local PostgreSQL/Redis.
-- Schema e migration inicial; seed idempotente com senha externa.
-- Login, refresh com rotação, logout e usuário autenticado.
-- Permissões por ação e isolamento por tenant nos endpoints implementados.
-- Consulta e cadastro de filiais.
-- Consulta e cadastro de usuários, perfis predefinidos, ativação/desativação e revogação de sessões.
-- Consulta de auditoria.
-- Criação e consulta paginada de produtos com busca, validação, unicidade, auditoria e evento transacional.
-- Interface administrativa conectada à API: login, produtos, filiais, usuários, perfis e auditoria.
-- Relay da outbox e consumidor idempotente inicial.
+Odoo Community é o motor e a fonte oficial dos registros operacionais. A interface ERA simplifica navegação e experiência; não duplicar CRM, vendas, estoque ou fiscal na API ERA enquanto não houver decisão explícita de integração ou migração. Odoo Enterprise e serviços pagos da KMEE estão fora do escopo. Módulos comunitários OCA precisam de análise de versão, dependências, licença e segurança antes da instalação.
 
-## Próxima etapa: concluir CORE
+## Publicado
 
-1. Gestão de empresas e configurações; edição/inativação de filiais.
-2. Convites, edição/paginação de usuários, recuperação de senha e gestão de sessões.
-3. Entidades de perfis/permissões, papéis solicitados e políticas por registro e filial.
-4. Auditoria de operações administrativas e de autenticação, filtros, paginação e exportação.
-5. Instrumentação Sentry/OpenTelemetry e controle de arquivos com S3 compatível.
+- Painel ERA Next.js no Render, com identidade oficial ERA e layout responsivo de login.
+- Visão geral e central de 19 atalhos relacionados ao menu existente do Odoo.
+- Os cartões abrem o seletor do Odoo; não escolhem automaticamente o aplicativo e não sincronizam registros.
+- Área Produtos e estoque encaminha ao Odoo para operar no Inventário; o catálogo de demonstração da API não é fonte oficial.
+- API privada NestJS e PostgreSQL separados para o protótipo de autenticação/administração ERA.
+- Login ERA e login Odoo permanecem separados.
+- Deploy do painel confirmado ativo em 17/10/2026; detalhes e limites em [render-deployment.md](render-deployment.md).
 
-## Sequência funcional
+## Próximos passos
 
-2. Cadastros: completar produtos (editar, inativar, categorias, marcas, unidades e preços), clientes, fornecedores e transportadoras.
-3. Estoque: depósitos, ledger, saldos, custos, reservas, transferências e inventários; concorrência e idempotência transacionais.
-4. Compras: solicitações → cotações → pedido → recebimento → entrada; importação XML.
-5. Vendas: orçamento → pedido → venda → financeiro/estoque; trocas e devoluções.
-6. Financeiro: contas, baixas, tesouraria, centros de custo, categorias, conciliação e fluxo de caixa.
-7. Dashboards calculados sobre transações, filtros de período/empresa/filial/categoria/status e exportação.
+1. **Inventário do ambiente Odoo:** registrar versão Community realmente implantada, módulos instalados/ativos, idioma, addons, configuração multiempresa e saúde do backup. Não alterar banco ou serviço durante o inventário.
+2. **Catálogo de módulos:** relacionar cada atalho ERA ao identificador/ação real do Odoo e criar deep links somente após validar acesso, idioma e versão. Informar quando módulo estiver ausente.
+3. **Escolha da integração:** definir se ERA utilizará sessão SSO, API com usuário técnico de menor privilégio ou outra abordagem suportada; definir autenticação e consentimento sem expor credenciais no navegador.
+4. **Piloto somente leitura:** integrar um domínio (por exemplo, consulta de produtos) com filtros e regras multiempresa herdados do usuário Odoo; validar isolamento com empresas de teste antes de expor dados.
+5. **Escrita controlada:** só depois do piloto, aprovar mapeamentos, idempotência, auditoria, tratamento de falhas e qual sistema é mestre para cada campo.
+6. **Brasil e integrações externas:** verificar módulos de localização brasileira OCA e licenças; avaliar Fidelizei, Type Digital e Nexo CRM uma a uma, sem ativar serviços pagos sem autorização.
+7. **Preparação operacional:** backups e restauração, monitoramento, limites de recurso/custos e revisão de segurança/dependências antes de qualquer uso com dados reais.
 
-Cada etapa requer regras de domínio, migrations, permissões, eventos, APIs, UI e testes. CRM, marketing, fidelidade, marketplaces e IA permanecem apenas contratos até o ERP estar consistente.
+## Protótipo técnico legado da API ERA
+
+A base contém autenticação multiempresa ERA, permissões por ação, filiais, usuários, perfis predefinidos, auditoria e endpoints de produtos. Esses endpoints pertencem ao protótipo PostgreSQL ERA; não representam sincronização com Odoo. Decidir o destino desses dados antes de tornar qualquer cadastro duplicado operacional.
+
+## Critérios de aceite por módulo
+
+Cada etapa requer: comportamento funcional aprovado; licença e versão registradas; testes de autorização e isolamento multiempresa; observabilidade de erros; documentação; sem segredos no Git; validação de custo/limite Render quando houver mudança de infraestrutura. Não usar dados de clientes em testes.
