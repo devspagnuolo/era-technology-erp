@@ -22,6 +22,10 @@ A POC restringe a instância a um único banco (`dbfilter` exato, `list_db=False
 
 O cadastro atual de endpoints é global e somente administradores podem alterá-lo. Antes de conectar qualquer integração, decidir se cada serviço é global ou separado por empresa jurídica; se for por empresa, incluir vínculo `company_id`, regras de registro e segredos separados antes de habilitar chamadas externas. Não reutilizar uma credencial entre empresas sem confirmação dos respectivos contratos.
 
+## Usuário técnico da API ERA
+
+A API ERA lê e grava no Odoo com o usuário `era-integracao` (grupos Usuário interno e Inventário/Administrador, apenas na empresa principal). Para criar o usuário ou trocar a senha, defina `ERA_INTEGRATION_PASSWORD` e `ERA_PROVISION_INTEGRATION=true` no serviço Odoo, faça um deploy e volte `ERA_PROVISION_INTEGRATION` para `false`. A mesma senha vai em `ODOO_API_KEY` no `era-api`. O Inventário (`stock`) precisa estar instalado: inclua `stock` em `ODOO_INIT_MODULES` com `ODOO_RUN_INIT=true` em um deploy.
+
 ## Uso local
 
 Execute Docker Compose com `odoo/docker-compose.poc.yml`.

@@ -7,6 +7,7 @@ COPY odoo/era_addons /mnt/extra-addons
 RUN git init /tmp/product-attribute && git -C /tmp/product-attribute remote add origin https://github.com/OCA/product-attribute.git && git -C /tmp/product-attribute config core.sparseCheckout true && printf 'uom_alias/\n' > /tmp/product-attribute/.git/info/sparse-checkout && git -C /tmp/product-attribute fetch --depth 1 origin 99f2e55944bb57568fbf3369b18ae0d06eb22b5d && git -C /tmp/product-attribute checkout FETCH_HEAD && cp -a /tmp/product-attribute/uom_alias /mnt/extra-addons/uom_alias && rm -rf /tmp/product-attribute
 COPY odoo/odoo.conf /etc/odoo/odoo.conf
 COPY odoo/start.sh /usr/local/bin/era-odoo-start
+COPY odoo/provision_integration.py /usr/local/share/era/provision_integration.py
 RUN chmod 0755 /usr/local/bin/era-odoo-start && chown -R odoo:odoo /mnt/extra-addons
 USER odoo
 ENTRYPOINT ["/usr/local/bin/era-odoo-start"]
