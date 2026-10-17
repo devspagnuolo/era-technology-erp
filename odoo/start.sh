@@ -30,4 +30,11 @@ if params.get_param(marker) != 'done':
 PY
 fi
 
+# Usuário técnico da API ERA (idempotente). Habilitar só quando precisar criar ou
+# trocar a senha; a senha vem de ERA_INTEGRATION_PASSWORD, nunca do repositório.
+if [ "${ERA_PROVISION_INTEGRATION:-false}" = "true" ]; then
+  : "${ERA_INTEGRATION_PASSWORD:?ERA_INTEGRATION_PASSWORD is required}"
+  odoo shell -c /tmp/odoo.conf -d "$ODOO_DB_NAME" --no-http < /usr/local/share/era/provision_integration.py
+fi
+
 exec odoo -c /tmp/odoo.conf -d "$ODOO_DB_NAME" --http-port "${PORT:-8069}"
