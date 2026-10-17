@@ -587,6 +587,28 @@ td {
   }
 }
 
+@media (max-width: 760px) {
+  .login {
+    display: block;
+  }
+  .login-story {
+    min-height: 350px;
+    padding: 28px 24px;
+  }
+  .login-story .eyebrow {
+    margin-top: 28px;
+  }
+  .login-story h1 {
+    font-size: 36px;
+  }
+  .login-foot {
+    display: none;
+  }
+  .login-form {
+    padding: 36px 24px;
+  }
+}
+
 dialog.modal {
   border: 0;
   margin: auto;
