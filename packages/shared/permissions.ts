@@ -43,6 +43,17 @@ export const permissions = [
   "employees:read",
   "employees:create",
   "employees:update",
+  "maintenance:read",
+  "maintenance:create",
+  "maintenance:update",
+  "timeoff:read",
+  "timeoff:create",
+  "timeoff:update",
+  "timeoff:approve",
+  "expenses:read",
+  "expenses:create",
+  "expenses:update",
+  "expenses:approve",
   "customers:read",
   "customers:create",
   "customers:update",
@@ -98,6 +109,23 @@ const employeesFull: PermissionKey[] = [
   "employees:create",
   "employees:update",
 ];
+const maintenanceFull: PermissionKey[] = [
+  "maintenance:read",
+  "maintenance:create",
+  "maintenance:update",
+];
+const timeoffFull: PermissionKey[] = [
+  "timeoff:read",
+  "timeoff:create",
+  "timeoff:update",
+  "timeoff:approve",
+];
+const expensesFull: PermissionKey[] = [
+  "expenses:read",
+  "expenses:create",
+  "expenses:update",
+  "expenses:approve",
+];
 export const rolePresets: Record<
   string,
   { label: string; permissions: PermissionKey[] }
@@ -121,6 +149,9 @@ export const rolePresets: Record<
       ...manufacturingFull,
       ...projectsFull,
       ...employeesFull,
+      ...maintenanceFull,
+      ...timeoffFull,
+      ...expensesFull,
       "audit:read",
     ],
   },
@@ -139,6 +170,9 @@ export const rolePresets: Record<
       ...manufacturingFull,
       ...projectsFull,
       "employees:read",
+      ...maintenanceFull,
+      "timeoff:read",
+      "expenses:read",
     ],
   },
   OPERATOR: {
@@ -150,6 +184,8 @@ export const rolePresets: Record<
       "inventory:read",
       "manufacturing:read",
       "projects:read",
+      "maintenance:read",
+      "maintenance:create",
     ],
   },
   FINANCIAL: {
@@ -160,6 +196,7 @@ export const rolePresets: Record<
       "sales:read",
       "purchases:read",
       ...invoicesFull,
+      ...expensesFull,
     ],
   },
   FISCAL: {

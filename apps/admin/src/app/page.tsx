@@ -25,6 +25,8 @@ import {
   Factory,
   FolderKanban,
   IdCard,
+  Wrench,
+  CalendarDays,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
@@ -38,6 +40,9 @@ import { OdooCrm } from "../components/odoo-crm";
 import { OdooManufacturing } from "../components/odoo-manufacturing";
 import { OdooProjects } from "../components/odoo-projects";
 import { OdooEmployees } from "../components/odoo-employees";
+import { OdooMaintenance } from "../components/odoo-maintenance";
+import { OdooTimeOff } from "../components/odoo-time-off";
+import { OdooExpenses } from "../components/odoo-expenses";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -209,6 +214,9 @@ function Catalog() {
     manufacturing: "Fabricação",
     projects: "Projetos",
     employees: "Funcionários",
+    maintenance: "Manutenção",
+    timeoff: "Folga",
+    expenses: "Despesas",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
@@ -227,6 +235,9 @@ function Catalog() {
     manufacturing: "manufacturing:read",
     projects: "projects:read",
     employees: "employees:read",
+    maintenance: "maintenance:read",
+    timeoff: "timeoff:read",
+    expenses: "expenses:read",
   };
   const views = (Object.keys(viewPermissions) as EraView[]).filter((v) =>
     permissions.includes(viewPermissions[v]!),
@@ -240,6 +251,9 @@ function Catalog() {
     { view: "manufacturing", label: "Fabricação", icon: <Factory size={19} /> },
     { view: "projects", label: "Projetos", icon: <FolderKanban size={19} /> },
     { view: "employees", label: "Funcionários", icon: <IdCard size={19} /> },
+    { view: "maintenance", label: "Manutenção", icon: <Wrench size={19} /> },
+    { view: "timeoff", label: "Folga", icon: <CalendarDays size={19} /> },
+    { view: "expenses", label: "Despesas", icon: <ReceiptText size={19} /> },
   ];
   return (
     <div className="shell era-shell">
@@ -413,6 +427,12 @@ function Catalog() {
             <OdooProjects permissions={permissions} odooUrl={odooEntryUrl} />
           ) : view === "employees" ? (
             <OdooEmployees permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "maintenance" ? (
+            <OdooMaintenance permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "timeoff" ? (
+            <OdooTimeOff permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "expenses" ? (
+            <OdooExpenses permissions={permissions} odooUrl={odooEntryUrl} />
           ) : view === "invoices" ? (
             <OdooInvoices
               permissions={user.data?.permissions ?? []}

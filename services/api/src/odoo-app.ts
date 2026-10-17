@@ -16,7 +16,13 @@ import { AuthRequest, Permission, parse } from "./auth";
 import { Domain, OdooClient } from "./odoo";
 import { OdooScope } from "./odoo-scope";
 import { OdooForms } from "./odoo-form";
-import { OdooRecords, RecordConfig, forAudit, recordId } from "./odoo-records";
+import {
+  OdooRecords,
+  RecordConfig,
+  companyField,
+  forAudit,
+  recordId,
+} from "./odoo-records";
 
 // Módulo do Odoo em configuração: lista com busca e filtros, formulário
 // completo (tela do Odoo), resumo para o cabeçalho e ações do próprio Odoo
@@ -40,6 +46,7 @@ export type AppAction = {
     model: string;
     id: number;
     body: Values;
+    summary: Values; // situação antes da ação
   }) => Promise<unknown>;
 };
 export type AppConfig = RecordConfig & {
@@ -93,7 +100,7 @@ export class OdooApp {
     if (!extra) throw new UnprocessableEntityException("Filtro inválido");
     const companyId = await this.scope.company(req);
     const domain: Domain = [
-      ["company_id", "=", companyId],
+      [companyField(this.config), "=", companyId],
       ...(this.config.domain ?? []),
       ...extra,
       ...(this.config.where?.((raw ?? {}) as Record<string, string>) ?? []),
@@ -145,7 +152,7 @@ export class OdooApp {
       [
         [
           ["id", "=", id],
-          ["company_id", "=", companyId],
+          [companyField(this.config), "=", companyId],
           ...(this.config.domain ?? []),
         ],
       ],
@@ -170,6 +177,7 @@ export class OdooApp {
       model: this.config.model,
       id,
       body: (body ?? {}) as Values,
+      summary: before,
     });
     const after = await this.summary(req, id);
     await this.scope.audit(

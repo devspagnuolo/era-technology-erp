@@ -22,6 +22,19 @@ import {
   OdooTasksController,
 } from "./odoo-projects";
 import { OdooEmployees, OdooEmployeesController } from "./odoo-employees";
+import {
+  OdooEquipment,
+  OdooEquipmentController,
+  OdooMaintenance,
+  OdooMaintenanceController,
+} from "./odoo-maintenance";
+import { OdooTimeOff, OdooTimeOffController } from "./odoo-time-off";
+import {
+  OdooExpenseReports,
+  OdooExpenseReportsController,
+  OdooExpenses,
+  OdooExpensesController,
+} from "./odoo-expenses";
 @Module({
   imports: [DatabaseModule],
   controllers: [
@@ -37,6 +50,11 @@ import { OdooEmployees, OdooEmployeesController } from "./odoo-employees";
     OdooProjectsController,
     OdooTasksController,
     OdooEmployeesController,
+    OdooMaintenanceController,
+    OdooEquipmentController,
+    OdooTimeOffController,
+    OdooExpensesController,
+    OdooExpenseReportsController,
   ],
   providers: [
     { provide: OdooClient, useFactory: () => new OdooClient(readOdooConfig()) },
@@ -53,6 +71,11 @@ import { OdooEmployees, OdooEmployeesController } from "./odoo-employees";
     OdooProjects,
     OdooTasks,
     OdooEmployees,
+    OdooMaintenance,
+    OdooEquipment,
+    OdooTimeOff,
+    OdooExpenses,
+    OdooExpenseReports,
   ],
 })
 export class OdooModule {}

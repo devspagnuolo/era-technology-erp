@@ -226,13 +226,30 @@ export function buildSchema(
     }
     const existing = fields[name];
     if (existing?.hidden) delete fields[name];
-    else if (existing) {
+    if (existing && !existing.hidden) {
       // Campo repetido com condições diferentes: visível se qualquer um estiver.
       existing.invisibleIf = andExpr(existing.invisibleIf, def.invisibleIf);
-      return;
+    } else {
+      fields[name] = def;
+      order.push({ section, name });
     }
-    fields[name] = def;
-    order.push({ section, name });
+    // Intervalo de datas (daterange): o Odoo mostra o fim junto do início,
+    // embora o campo final fique oculto na tela; na ERA ele vira um campo
+    // logo depois do início, com as mesmas condições desta ocorrência.
+    const end = endDateField(attrs);
+    const endInfo = end ? meta[end] : undefined;
+    if (!end || !endInfo || hidden.has(end)) return;
+    if (fields[end] && !fields[end].hidden) return;
+    const endAttrs: Record<string, string> = {
+      ...attrs,
+      name: end,
+      string: endInfo.string,
+    };
+    delete endAttrs.widget;
+    delete endAttrs.options;
+    fields[end] = fieldDef(endInfo, endAttrs, section, group, scopeInvisible);
+    const at = order.findIndex((o) => o.name === name);
+    order.splice(at + 1, 0, { section: order[at].section, name: end });
   };
   // Campos sempre ocultos: só os simples (sem listas nem arquivos).
   function keepHidden(attrs: Record<string, string>) {
@@ -272,6 +289,13 @@ export function buildSchema(
     fields,
     deps: dependencies(fields, meta),
   };
+}
+
+function endDateField(attrs: Record<string, string>) {
+  if (attrs.widget !== "daterange") return undefined;
+  return /['"]end_date_field['"]\s*:\s*['"](\w+)['"]/.exec(
+    attrs.options ?? "",
+  )?.[1];
 }
 
 function stages(node: ArchNode, meta: Record<string, Meta>): ArchNode[] {

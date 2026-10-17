@@ -19,6 +19,15 @@ import { OdooCrm } from "../services/api/src/odoo-crm";
 import { OdooManufacturing } from "../services/api/src/odoo-manufacturing";
 import { OdooProjects, OdooTasks } from "../services/api/src/odoo-projects";
 import { OdooEmployees } from "../services/api/src/odoo-employees";
+import {
+  OdooEquipment,
+  OdooMaintenance,
+} from "../services/api/src/odoo-maintenance";
+import { OdooTimeOff } from "../services/api/src/odoo-time-off";
+import {
+  OdooExpenseReports,
+  OdooExpenses,
+} from "../services/api/src/odoo-expenses";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooStatusController } from "../services/api/src/odoo-status";
@@ -82,6 +91,11 @@ const services = (scope: OdooScope) => {
     projects: new OdooProjects(scope, forms),
     tasks: new OdooTasks(scope, forms),
     employees: new OdooEmployees(scope, forms),
+    maintenance: new OdooMaintenance(scope, forms),
+    equipment: new OdooEquipment(scope, forms),
+    timeOff: new OdooTimeOff(scope, forms),
+    expenses: new OdooExpenses(scope, forms),
+    expenseReports: new OdooExpenseReports(scope, forms),
   };
 };
 
@@ -858,3 +872,208 @@ function pick(values: Record<string, unknown>) {
       ]),
   );
 }
+
+test(
+  "manutenção: equipamento, solicitação com etapa, arquivar e reabrir",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const { maintenance, equipment } = services(
+      scopeFor(fakeDb([]), companies),
+    );
+    const tag = randomUUID().slice(0, 8);
+    const equipmentForm = await equipment.form(as(a));
+    for (const name of ["name", "category_id", "serial_no", "warranty_date"])
+      assert.ok(equipmentForm.schema.fields[name], name);
+    const machine = await equipment.records.create(as(a), {
+      values: {
+        ...pick(equipmentForm.values),
+        name: "Máquina " + tag,
+        serial_no: "SN-" + tag,
+      },
+    });
+    const blank = await maintenance.form(as(a));
+    for (const name of ["name", "equipment_id", "stage_id", "schedule_date"])
+      assert.ok(blank.schema.fields[name], name);
+    const request = await maintenance.records.create(as(a), {
+      values: {
+        ...pick(blank.values),
+        name: "Revisão " + tag,
+        equipment_id: machine.id,
+      },
+    });
+    const id = request.id as number;
+    let summary = await maintenance.summary(as(a), id);
+    assert.equal((summary.equipment as Ref).id, machine.id);
+    assert.equal((await maintenance.list(as(a), { q: tag })).total, 1);
+    assert.equal(
+      (await maintenance.list(as(b), { q: tag, filter: "all" })).total,
+      0,
+    );
+    summary = await maintenance.run(as(a), id, "archive", {});
+    assert.equal(summary.archived, true);
+    summary = await maintenance.run(as(a), id, "reopen", {});
+    assert.equal(summary.archived, false);
+    assert.equal(
+      (await equipment.list(as(a), { q: "SN-" + tag })).items[0].openRequests,
+      1,
+    );
+  },
+);
+
+test(
+  "folga: pedido com período, aprovação, recusa e reabertura",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const scope = scopeFor(fakeDb([]), companies);
+    const { employees, timeOff } = services(scope);
+    const tag = randomUUID().slice(0, 8);
+    const employeeForm = await employees.form(as(a));
+    const employee = await employees.records.create(as(a), {
+      values: { ...pick(employeeForm.values), name: "Pessoa " + tag },
+    });
+    const [type] = await scope.odoo.execute<Array<{ id: number }>>(
+      companies[a],
+      "hr.leave.type",
+      "search_read",
+      [
+        [
+          ["requires_allocation", "=", "no"],
+          ["request_unit", "=", "day"],
+          ["company_id", "in", [companies[a], false]],
+        ],
+      ],
+      { fields: ["id"], limit: 1 },
+    );
+    assert.ok(type, "tipo de folga sem alocação");
+    const blank = await timeOff.form(as(a));
+    for (const name of ["employee_id", "holiday_status_id", "request_date_to"])
+      assert.ok(blank.schema.fields[name], name);
+    // Segunda e terça de uma semana futura, sem conflito com outros testes.
+    const day = new Date(Date.UTC(2031, 0, 6 + (parseInt(tag, 16) % 200) * 7));
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const next = new Date(day.getTime() + 86400000);
+    const chosen = {
+      ...blank.values,
+      employee_id: employee.id,
+      holiday_status_id: type.id,
+      request_date_from: iso(day),
+      request_date_to: iso(next),
+    };
+    // Como no painel: o recálculo do Odoo completa os demais campos.
+    const { values: changed } = (await timeOff.records.onchange(as(a), {
+      values: chosen,
+      field: "request_date_to",
+    })) as { values: Record<string, unknown> };
+    const values = Object.fromEntries(
+      Object.entries({ ...chosen, ...changed }).filter(
+        ([k]) => k in blank.schema.fields,
+      ),
+    );
+    const created = await timeOff.records.create(as(a), {
+      values: {
+        ...pick(values),
+        name: "Consulta " + tag,
+      },
+    });
+    const id = created.id as number;
+    let summary = await timeOff.summary(as(a), id);
+    assert.equal(summary.stage, "pending");
+    assert.equal(summary.days, 2);
+    assert.equal((await timeOff.list(as(a), { q: tag })).total, 1);
+    assert.equal(
+      (await timeOff.list(as(b), { q: tag, filter: "all" })).total,
+      0,
+    );
+    summary = await timeOff.run(as(a), id, "approve", {});
+    if (summary.state === "validate1")
+      summary = await timeOff.run(as(a), id, "approve", {});
+    assert.equal(summary.stage, "approved");
+    summary = await timeOff.run(as(a), id, "refuse", {});
+    assert.equal(summary.stage, "refused");
+    summary = await timeOff.run(as(a), id, "reset", {});
+    assert.equal(summary.stage, "pending");
+  },
+);
+
+test(
+  "despesas: despesa vira relatório, aprovado, contabilizado e reembolsado",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const { employees, expenses, expenseReports } = services(
+      scopeFor(fakeDb([]), companies),
+    );
+    const tag = randomUUID().slice(0, 8);
+    const employeeForm = await employees.form(as(a));
+    const employee = await employees.records.create(as(a), {
+      values: { ...pick(employeeForm.values), name: "Pessoa " + tag },
+    });
+    const blank = await expenses.form(as(a));
+    for (const name of ["name", "product_id", "employee_id", "payment_mode"])
+      assert.ok(blank.schema.fields[name], name);
+    const [category] = (await expenses.records.lookup(as(a), {
+      field: "product_id",
+      q: "",
+      values: blank.values,
+    })) as Ref[];
+    assert.ok(category, "categoria de despesa");
+    const chosen = {
+      ...blank.values,
+      employee_id: employee.id,
+      product_id: category.id,
+    };
+    // Como no painel: cada campo alterado passa pelo recálculo do Odoo (o
+    // total em moeda da empresa acompanha o total informado).
+    let values: Record<string, unknown> = chosen;
+    for (const [field, value] of [
+      ["product_id", category.id],
+      ["total_amount_currency", 80],
+    ] as const) {
+      values = { ...values, [field]: value };
+      const { values: changed } = (await expenses.records.onchange(as(a), {
+        values,
+        field,
+      })) as { values: Record<string, unknown> };
+      values = { ...values, ...changed };
+    }
+    values = Object.fromEntries(
+      Object.entries(values).filter(([k]) => k in blank.schema.fields),
+    );
+    const created = await expenses.records.create(as(a), {
+      values: {
+        ...pick(values),
+        name: "Táxi " + tag,
+        payment_mode: "own_account",
+      },
+    });
+    const id = created.id as number;
+    assert.equal((await expenses.summary(as(a), id)).total, "80.00");
+    assert.equal(
+      (await expenses.list(as(b), { q: tag, filter: "all" })).total,
+      0,
+    );
+    const submitted = await expenses.run(as(a), id, "submit", {});
+    const report = submitted.report as Ref;
+    assert.ok(report);
+    let sheet = await expenseReports.summary(as(a), report.id);
+    assert.equal(sheet.total, "80.00");
+    for (const [action, state] of [
+      ["submit", "submit"],
+      ["approve", "approve"],
+      ["post", "post"],
+      ["pay", "done"],
+    ]) {
+      sheet = await expenseReports.run(as(a), report.id, action, {});
+      assert.equal(sheet.state, state, action);
+    }
+    await assert.rejects(
+      () => expenseReports.form(as(b), report.id),
+      NotFoundException,
+    );
+  },
+);
