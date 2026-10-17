@@ -34,6 +34,10 @@ export type EraView =
   | "purchases"
   | "inventory"
   | "invoices"
+  | "crm"
+  | "manufacturing"
+  | "projects"
+  | "employees"
   | "audit"
   | "users"
   | "branches"
@@ -47,6 +51,8 @@ type EraModule = {
   description: string;
   icon: LucideIcon;
   featured?: boolean;
+  // Tela da ERA para o módulo; sem ela, o atalho abre o Odoo.
+  view?: EraView;
 };
 
 export const ERA_MODULES: EraModule[] = [
@@ -73,6 +79,7 @@ export const ERA_MODULES: EraModule[] = [
     group: "Comercial",
     description: "Clientes, fornecedores e outros contatos.",
     icon: ContactRound,
+    view: "contacts",
   },
   {
     name: "CRM",
@@ -80,6 +87,7 @@ export const ERA_MODULES: EraModule[] = [
     description: "Acompanhe oportunidades e relacionamento comercial.",
     icon: UsersRound,
     featured: true,
+    view: "crm",
   },
   {
     name: "Vendas",
@@ -87,6 +95,7 @@ export const ERA_MODULES: EraModule[] = [
     description: "Orçamentos e pedidos de venda.",
     icon: ShoppingCart,
     featured: true,
+    view: "sales",
   },
   {
     name: "Fiscal",
@@ -106,18 +115,21 @@ export const ERA_MODULES: EraModule[] = [
     description: "Faturas e documentos financeiros de clientes.",
     icon: ReceiptText,
     featured: true,
+    view: "invoices",
   },
   {
     name: "Projeto",
     group: "Operação",
     description: "Projetos, etapas e tarefas de entrega.",
     icon: FolderKanban,
+    view: "projects",
   },
   {
     name: "Compras",
     group: "Operação",
     description: "Solicitações, cotações e pedidos de compra.",
     icon: ShoppingCart,
+    view: "purchases",
   },
   {
     name: "Inventário",
@@ -125,12 +137,14 @@ export const ERA_MODULES: EraModule[] = [
     description: "Produtos, depósitos e movimentações de estoque.",
     icon: Boxes,
     featured: true,
+    view: "inventory",
   },
   {
     name: "Fabricação",
     group: "Operação",
     description: "Ordens e processos de produção, se aplicáveis ao negócio.",
     icon: Factory,
+    view: "manufacturing",
   },
   {
     name: "Manutenção",
@@ -143,6 +157,7 @@ export const ERA_MODULES: EraModule[] = [
     group: "Equipe",
     description: "Cadastro e organização da equipe.",
     icon: UsersRound,
+    view: "employees",
   },
   {
     name: "Folga",
@@ -184,13 +199,46 @@ function OdooLink({ href, className, children }: {
   );
 }
 
+// Módulo com tela na ERA (e permissão do usuário) abre aqui; os demais, no Odoo.
+function ModuleLink({
+  item,
+  odooUrl,
+  views,
+  onViewChange,
+  className,
+  children,
+}: {
+  item: EraModule;
+  odooUrl: string;
+  views: EraView[];
+  onViewChange: (view: EraView) => void;
+  className: string;
+  children: React.ReactNode;
+}) {
+  if (item.view && views.includes(item.view)) {
+    const view = item.view;
+    return (
+      <button type="button" className={className} onClick={() => onViewChange(view)}>
+        {children}
+      </button>
+    );
+  }
+  return (
+    <OdooLink className={className} href={odooUrl}>
+      {children}
+    </OdooLink>
+  );
+}
+
 export function EraDashboard({
   name,
   odooUrl,
+  views,
   onViewChange,
 }: {
   name: string;
   odooUrl: string;
+  views: EraView[];
   onViewChange: (view: EraView) => void;
 }) {
   const greeting = new Date().getHours() < 12 ? "Bom dia" : new Date().getHours() < 18 ? "Boa tarde" : "Boa noite";
@@ -233,14 +281,14 @@ export function EraDashboard({
         {shortcuts.map((item) => {
           const Icon = item.icon;
           return (
-            <OdooLink key={item.name} className="era-shortcut" href={odooUrl}>
+            <ModuleLink key={item.name} item={item} odooUrl={odooUrl} views={views} onViewChange={onViewChange} className="era-shortcut">
               <span className="era-module-icon"><Icon size={20} /></span>
               <span className="era-shortcut-text">
                 <strong>{item.name}</strong>
                 <small>{item.description}</small>
               </span>
               <ArrowUpRight className="era-card-arrow" size={17} />
-            </OdooLink>
+            </ModuleLink>
           );
         })}
       </section>
@@ -280,7 +328,15 @@ export function EraDashboard({
   );
 }
 
-export function EraModuleCenter({ odooUrl }: { odooUrl: string }) {
+export function EraModuleCenter({
+  odooUrl,
+  views,
+  onViewChange,
+}: {
+  odooUrl: string;
+  views: EraView[];
+  onViewChange: (view: EraView) => void;
+}) {
   const [query, setQuery] = useState("");
   const filteredModules = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
@@ -296,7 +352,7 @@ export function EraModuleCenter({ odooUrl }: { odooUrl: string }) {
         <div>
           <span className="era-eyebrow">CENTRAL ERA</span>
           <h1>Módulos</h1>
-          <p>Os atalhos levam ao ambiente Odoo; escolha o aplicativo desejado no menu de lá.</p>
+          <p>Os módulos com tela na ERA abrem aqui, com os dados gravados no Odoo; os demais abrem no próprio Odoo.</p>
         </div>
         <OdooLink className="era-primary-link" href={odooUrl}>
           Abrir o Odoo <ArrowUpRight size={16} />
@@ -322,14 +378,14 @@ export function EraModuleCenter({ odooUrl }: { odooUrl: string }) {
               {items.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <OdooLink key={item.name} className="era-module-card" href={odooUrl}>
+                  <ModuleLink key={item.name} item={item} odooUrl={odooUrl} views={views} onViewChange={onViewChange} className="era-module-card">
                     <span className="era-module-icon"><Icon size={19} /></span>
                     <span className="era-module-copy">
                       <strong>{item.name}</strong>
                       <small>{item.description}</small>
                     </span>
                     <ArrowUpRight className="era-card-arrow" size={16} />
-                  </OdooLink>
+                  </ModuleLink>
                 );
               })}
             </div>
@@ -340,7 +396,7 @@ export function EraModuleCenter({ odooUrl }: { odooUrl: string }) {
         <div className="era-no-modules">Nenhum módulo corresponde a “{query}”.</div>
       )}
       <div className="era-module-disclaimer">
-        O Odoo continua responsável pelos registros e operações. Esta central não sincroniza dados nem substitui o login do Odoo.
+        O Odoo continua responsável pelos registros e operações: as telas da ERA leem e gravam diretamente nele, sem cópia dos dados.
       </div>
     </div>
   );

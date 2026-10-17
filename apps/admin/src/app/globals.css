@@ -1802,3 +1802,11 @@ label > textarea {
   background: #eaf6ed;
   color: #398451;
 }
+button.era-module-card,
+button.era-shortcut {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}

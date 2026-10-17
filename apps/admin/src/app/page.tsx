@@ -21,6 +21,10 @@ import {
   Truck,
   Warehouse,
   ReceiptText,
+  Handshake,
+  Factory,
+  FolderKanban,
+  IdCard,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
@@ -30,6 +34,10 @@ import { OdooContacts } from "../components/odoo-contacts";
 import { OdooOrders, PURCHASES, SALES } from "../components/odoo-orders";
 import { OdooTransfers } from "../components/odoo-transfers";
 import { OdooInvoices } from "../components/odoo-invoices";
+import { OdooCrm } from "../components/odoo-crm";
+import { OdooManufacturing } from "../components/odoo-manufacturing";
+import { OdooProjects } from "../components/odoo-projects";
+import { OdooEmployees } from "../components/odoo-employees";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -197,11 +205,42 @@ function Catalog() {
     purchases: "Compras",
     inventory: "Estoque",
     invoices: "Faturas",
+    crm: "CRM",
+    manufacturing: "Fabricação",
+    projects: "Projetos",
+    employees: "Funcionários",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
     profiles: "Perfis",
   };
+  const permissions = user.data?.permissions ?? [];
+  // Telas da ERA que o usuário pode abrir (atalhos dos módulos).
+  const viewPermissions: Partial<Record<EraView, string>> = {
+    products: "products:read",
+    contacts: "contacts:read",
+    sales: "sales:read",
+    purchases: "purchases:read",
+    inventory: "inventory:read",
+    invoices: "invoices:read",
+    crm: "crm:read",
+    manufacturing: "manufacturing:read",
+    projects: "projects:read",
+    employees: "employees:read",
+  };
+  const views = (Object.keys(viewPermissions) as EraView[]).filter((v) =>
+    permissions.includes(viewPermissions[v]!),
+  );
+  const moreModules: Array<{
+    view: EraView;
+    label: string;
+    icon: React.ReactNode;
+  }> = [
+    { view: "crm", label: "CRM", icon: <Handshake size={19} /> },
+    { view: "manufacturing", label: "Fabricação", icon: <Factory size={19} /> },
+    { view: "projects", label: "Projetos", icon: <FolderKanban size={19} /> },
+    { view: "employees", label: "Funcionários", icon: <IdCard size={19} /> },
+  ];
   return (
     <div className="shell era-shell">
       <aside className="era-sidebar">
@@ -272,6 +311,17 @@ function Catalog() {
             <ReceiptText size={19} /> Faturas
           </button>
         )}
+        {moreModules
+          .filter((m) => views.includes(m.view))
+          .map((m) => (
+            <button
+              key={m.view}
+              className={view === m.view ? "nav active" : "nav"}
+              onClick={() => setView(m.view)}
+            >
+              {m.icon} {m.label}
+            </button>
+          ))}
         {user.data?.permissions.includes("audit:read") && (
           <>
             <p className="nav-label">ADMINISTRAÇÃO</p>
@@ -336,10 +386,15 @@ function Catalog() {
             <EraDashboard
               name={user.data?.name || "equipe ERA"}
               odooUrl={odooEntryUrl}
+              views={views}
               onViewChange={setView}
             />
           ) : view === "modules" ? (
-            <EraModuleCenter odooUrl={odooEntryUrl} />
+            <EraModuleCenter
+              odooUrl={odooEntryUrl}
+              views={views}
+              onViewChange={setView}
+            />
           ) : view === "users" || view === "branches" || view === "profiles" ? (
             <CorePanel
               key={view}
@@ -347,6 +402,17 @@ function Catalog() {
               permissions={user.data?.permissions ?? []}
               currentUserId={user.data?.id ?? ""}
             />
+          ) : view === "crm" ? (
+            <OdooCrm permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "manufacturing" ? (
+            <OdooManufacturing
+              permissions={permissions}
+              odooUrl={odooEntryUrl}
+            />
+          ) : view === "projects" ? (
+            <OdooProjects permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "employees" ? (
+            <OdooEmployees permissions={permissions} odooUrl={odooEntryUrl} />
           ) : view === "invoices" ? (
             <OdooInvoices
               permissions={user.data?.permissions ?? []}

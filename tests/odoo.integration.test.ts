@@ -15,6 +15,10 @@ import { OdooSales } from "../services/api/src/odoo-sales";
 import { OdooPurchases } from "../services/api/src/odoo-purchases";
 import { OdooTransfers } from "../services/api/src/odoo-transfers";
 import { OdooInvoices } from "../services/api/src/odoo-invoices";
+import { OdooCrm } from "../services/api/src/odoo-crm";
+import { OdooManufacturing } from "../services/api/src/odoo-manufacturing";
+import { OdooProjects, OdooTasks } from "../services/api/src/odoo-projects";
+import { OdooEmployees } from "../services/api/src/odoo-employees";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooStatusController } from "../services/api/src/odoo-status";
@@ -73,6 +77,11 @@ const services = (scope: OdooScope) => {
     purchases: new OdooPurchases(scope, forms).orders,
     transfers: new OdooTransfers(scope, forms),
     invoices: new OdooInvoices(scope, forms),
+    crm: new OdooCrm(scope, forms),
+    manufacturing: new OdooManufacturing(scope, forms),
+    projects: new OdooProjects(scope, forms),
+    tasks: new OdooTasks(scope, forms),
+    employees: new OdooEmployees(scope, forms),
   };
 };
 
@@ -617,3 +626,235 @@ test(
     );
   },
 );
+
+test(
+  "crm: oportunidade com dados brasileiros, etapa, perda e ganho",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const audits: Array<{ action: string; recordId: string }> = [];
+    const { crm } = services(scopeFor(fakeDb(audits), companies));
+    const tag = randomUUID().slice(0, 8);
+    const blank = await crm.form(as(a));
+    for (const name of ["name", "partner_id", "expected_revenue", "stage_id"])
+      assert.ok(blank.schema.fields[name], name);
+    assert.equal(blank.schema.fields.stage_id.group, "Etapa");
+    assert.equal(blank.values.type, "opportunity");
+    const created = await crm.records.create(as(a), {
+      values: {
+        name: "Oportunidade " + tag,
+        partner_name: "Cliente " + tag,
+        expected_revenue: 1500,
+        type: "opportunity",
+      },
+    });
+    const id = created.id as number;
+    const stages = (await crm.records.lookup(as(a), {
+      field: "stage_id",
+      q: "",
+      values: created,
+    })) as Ref[];
+    assert.ok(stages.length > 1);
+    await crm.records.update(as(a), id, {
+      values: { stage_id: stages[1].id },
+    });
+    let summary = await crm.summary(as(a), id);
+    assert.equal(summary.stage && (summary.stage as Ref).id, stages[1].id);
+    assert.equal(summary.revenue, "1500.00");
+    assert.equal(summary.outcome, "open");
+    assert.equal((await crm.list(as(a), { q: tag })).total, 1);
+    assert.equal((await crm.list(as(b), { q: tag, filter: "all" })).total, 0);
+    await assert.rejects(() => crm.form(as(b), id), NotFoundException);
+    summary = await crm.run(as(a), id, "lost", {});
+    assert.equal(summary.outcome, "lost");
+    assert.equal((await crm.list(as(a), { q: tag, filter: "lost" })).total, 1);
+    // Perdida continua abrindo (arquivada no Odoo).
+    assert.ok((await crm.form(as(a), id)).values.name);
+    summary = await crm.run(as(a), id, "reopen", {});
+    assert.equal(summary.outcome, "open");
+    summary = await crm.run(as(a), id, "won", {});
+    assert.equal(summary.outcome, "won");
+    await assert.rejects(
+      () => crm.run(as(a), id, "won", {}),
+      UnprocessableEntityException,
+    );
+    assert.deepEqual(
+      audits
+        .filter((e) => e.recordId === "crm.lead:" + id)
+        .map((e) => e.action),
+      ["create", "update", "lost", "reopen", "won"],
+    );
+  },
+);
+
+test(
+  "fabricação: ordem de produção confirmada e concluída dá entrada no estoque",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const { products, manufacturing } = services(
+      scopeFor(fakeDb([]), companies),
+    );
+    const tag = randomUUID().slice(0, 8);
+    const sku = "FAB-" + tag;
+    await products.records.create(as(a), {
+      values: {
+        name: "Fabricado " + tag,
+        default_code: sku,
+        is_storable: true,
+      },
+    });
+    const blank = await manufacturing.form(as(a));
+    for (const name of ["product_id", "product_qty", "bom_id", "move_raw_ids"])
+      assert.ok(blank.schema.fields[name], name);
+    const [variant] = (await manufacturing.records.lookup(as(a), {
+      field: "product_id",
+      q: tag,
+      values: blank.values,
+    })) as Ref[];
+    assert.ok(variant);
+    const { values: filled } = (await manufacturing.records.onchange(as(a), {
+      values: { ...blank.values, product_id: variant.id },
+      field: "product_id",
+    })) as { values: Record<string, unknown> };
+    const plain = (v: unknown) =>
+      v && typeof v === "object" && "id" in v ? (v as Ref).id : v;
+    const created = await manufacturing.records.create(as(a), {
+      values: {
+        product_id: variant.id,
+        product_qty: 4,
+        product_uom_id: plain(filled.product_uom_id),
+        picking_type_id: plain(
+          filled.picking_type_id ?? blank.values.picking_type_id,
+        ),
+      },
+    });
+    const id = created.id as number;
+    assert.equal((await manufacturing.summary(as(a), id)).stage, "draft");
+    assert.equal(
+      (await manufacturing.run(as(a), id, "confirm", {})).stage,
+      "confirmed",
+    );
+    const done = await manufacturing.run(as(a), id, "done", {});
+    assert.equal(done.stage, "done");
+    assert.equal(done.producing, 4);
+    assert.equal((await products.list(as(a), { q: sku })).items[0].quantity, 4);
+    await assert.rejects(
+      () => manufacturing.form(as(b), id),
+      NotFoundException,
+    );
+    assert.equal(
+      (await manufacturing.list(as(a), { q: tag, filter: "done" })).total,
+      1,
+    );
+  },
+);
+
+test(
+  "projeto: projeto, tarefa com etapa e conclusão da tarefa",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const { projects, tasks } = services(scopeFor(fakeDb([]), companies));
+    const tag = randomUUID().slice(0, 8);
+    const projectForm = await projects.form(as(a));
+    for (const name of ["name", "partner_id", "user_id", "privacy_visibility"])
+      assert.ok(projectForm.schema.fields[name], name);
+    const project = await projects.records.create(as(a), {
+      values: { ...pick(projectForm.values), name: "Projeto " + tag },
+    });
+    const projectId = project.id as number;
+    const taskForm = await tasks.form(as(a), undefined, {
+      project: String(projectId),
+    });
+    assert.equal((taskForm.values.project_id as Ref).id, projectId);
+    assert.ok(taskForm.schema.fields.stage_id);
+    assert.equal(taskForm.schema.fields.personal_stage_type_id, undefined);
+    const task = await tasks.records.create(as(a), {
+      values: { name: "Tarefa " + tag, project_id: projectId },
+    });
+    const taskId = task.id as number;
+    assert.equal(
+      (await tasks.list(as(a), { project: String(projectId) })).total,
+      1,
+    );
+    let summary = await tasks.run(as(a), taskId, "done", {});
+    assert.equal(summary.closed, true);
+    assert.equal(
+      (await tasks.list(as(a), { project: String(projectId) })).total,
+      0,
+    );
+    summary = await tasks.run(as(a), taskId, "reopen", {});
+    assert.equal(summary.closed, false);
+    assert.equal((await projects.list(as(a), { q: tag })).items[0].tasks, 1);
+    assert.equal(
+      (await projects.list(as(b), { q: tag, filter: "all" })).total,
+      0,
+    );
+    await projects.records.update(as(a), projectId, { active: false });
+    assert.equal(
+      (await projects.list(as(a), { q: tag, filter: "archived" })).total,
+      1,
+    );
+  },
+);
+
+test(
+  "funcionários: cadastro completo de RH, isolamento e desligamento",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const { employees } = services(scopeFor(fakeDb([]), companies));
+    const tag = randomUUID().slice(0, 8);
+    const blank = await employees.form(as(a));
+    for (const name of [
+      "name",
+      "job_title",
+      "department_id",
+      "private_street",
+      "birthday",
+      "resource_calendar_id",
+    ])
+      assert.ok(blank.schema.fields[name], name);
+    assert.ok(blank.schema.sections.length >= 4);
+    const created = await employees.records.create(as(a), {
+      values: {
+        ...pick(blank.values),
+        name: "Pessoa " + tag,
+        job_title: "Analista",
+        birthday: "1990-05-01",
+      },
+    });
+    const id = created.id as number;
+    assert.equal(created.birthday, "1990-05-01");
+    const listed = await employees.list(as(a), { q: tag });
+    assert.equal(listed.items[0].jobTitle, "Analista");
+    assert.equal(
+      (await employees.list(as(b), { q: tag, filter: "all" })).total,
+      0,
+    );
+    await assert.rejects(() => employees.form(as(b), id), NotFoundException);
+    await employees.records.update(as(a), id, { active: false });
+    assert.equal(
+      (await employees.list(as(a), { q: tag, filter: "archived" })).total,
+      1,
+    );
+  },
+);
+
+// Valores padrão do Odoo prontos para gravar (relações viram ids).
+function pick(values: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(values)
+      .filter(([k, v]) => k !== "company_id" && v !== null && v !== false)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [
+        k,
+        v && typeof v === "object" && "id" in v ? (v as Ref).id : v,
+      ]),
+  );
+}
