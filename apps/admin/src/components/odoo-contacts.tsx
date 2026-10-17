@@ -1,9 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   ArrowUpRight,
   ChevronLeft,
@@ -12,11 +9,11 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { api } from "../lib/session";
 import { Button } from "./ui/button";
 import { OdooUnavailable, useOdooStatus } from "./odoo-status";
+import { OdooRecordDialog } from "./odoo-record-dialog";
 
 export type OdooContact = {
   id: number;
@@ -38,24 +35,7 @@ type Page = {
   pageSize: number;
   roles: boolean;
 };
-const schema = z.object({
-  name: z.string().trim().min(2, "Informe o nome"),
-  kind: z.enum(["company", "person"]),
-  document: z.string().trim(),
-  email: z
-    .string()
-    .trim()
-    .refine((v) => !v || z.string().email().safeParse(v).success, {
-      message: "E-mail inválido",
-    }),
-  phone: z.string().trim(),
-  street: z.string().trim(),
-  city: z.string().trim(),
-  zip: z.string().trim(),
-  customer: z.boolean(),
-  supplier: z.boolean(),
-});
-type Input = z.infer<typeof schema>;
+type Roles = { customer: boolean; supplier: boolean };
 const roleLabel = (c: OdooContact) =>
   [c.customer && "Cliente", c.supplier && "Fornecedor"]
     .filter(Boolean)
@@ -227,15 +207,15 @@ export function OdooContacts({
                           </td>
                           <td>
                             <div className="row-actions">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditing(c)}
+                              >
+                                {canUpdate ? "Editar" : "Abrir"}
+                              </Button>
                               {canUpdate && (
                                 <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setEditing(c)}
-                                  >
-                                    Editar
-                                  </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -314,9 +294,43 @@ export function OdooContacts({
         </>
       )}
       {editing && (
-        <ContactDialog
-          contact={editing === "new" ? undefined : editing}
-          roles={roles}
+        <OdooRecordDialog<{ roles: Roles | null }>
+          endpoint="odoo/contacts"
+          recordId={editing === "new" ? undefined : editing.id}
+          eyebrow="CONTATOS · ODOO"
+          title={(form) =>
+            editing === "new"
+              ? "Novo contato"
+              : String(form?.values.name ?? editing.name)
+          }
+          canEdit={editing === "new" ? canCreate : canUpdate}
+          invalidate={["odoo-contacts"]}
+          createLabel="Cadastrar contato"
+          extraValues={(form) => form.roles ?? {}}
+          extra={(form, values, set) =>
+            form.roles && (
+              <div className="checkbox-group odoo-roles">
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={!!values.customer}
+                    disabled={editing === "new" ? !canCreate : !canUpdate}
+                    onChange={(e) => set({ customer: e.target.checked })}
+                  />
+                  Cliente
+                </label>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={!!values.supplier}
+                    disabled={editing === "new" ? !canCreate : !canUpdate}
+                    onChange={(e) => set({ supplier: e.target.checked })}
+                  />
+                  Fornecedor
+                </label>
+              </div>
+            )
+          }
           onClose={() => setEditing(null)}
         />
       )}
@@ -324,169 +338,3 @@ export function OdooContacts({
   );
 }
 
-function ContactDialog({
-  contact,
-  roles,
-  onClose,
-}: {
-  contact?: OdooContact;
-  roles: boolean;
-  onClose: () => void;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
-  const cache = useQueryClient();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, dirtyFields },
-  } = useForm<Input>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: contact?.name ?? "",
-      kind: contact?.kind ?? "company",
-      document: contact?.document ?? "",
-      email: contact?.email ?? "",
-      phone: contact?.phone ?? "",
-      street: contact?.street ?? "",
-      city: contact?.city ?? "",
-      zip: contact?.zip ?? "",
-      customer: contact ? contact.customer : true,
-      supplier: contact ? contact.supplier : false,
-    },
-  });
-  const save = useMutation({
-    mutationFn: (input: Input) => {
-      const body: Record<string, unknown> = {
-        ...input,
-        document: input.document || null,
-        email: input.email || null,
-        phone: input.phone || null,
-        street: input.street || null,
-        city: input.city || null,
-        zip: input.zip || null,
-      };
-      if (!roles) {
-        delete body.customer;
-        delete body.supplier;
-      }
-      if (!contact)
-        return api("odoo/contacts", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-      // Na edição, envia apenas o que mudou para não sobrescrever o Odoo.
-      const changed = Object.fromEntries(
-        Object.entries(body).filter(([key]) => dirtyFields[key as keyof Input]),
-      );
-      return api("odoo/contacts/" + contact.id, {
-        method: "PATCH",
-        body: JSON.stringify(changed),
-      });
-    },
-    onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["odoo-contacts"] });
-      void cache.invalidateQueries({ queryKey: ["audit"] });
-      onClose();
-    },
-  });
-  const field = (name: keyof Input, label: string, type = "text") => (
-    <label>
-      {label}
-      <input
-        {...register(name)}
-        type={type}
-        autoFocus={name === "name"}
-        aria-invalid={!!errors[name]}
-      />
-      {errors[name] && <span className="error">{errors[name]?.message}</span>}
-    </label>
-  );
-  return (
-    <dialog
-      ref={dialog}
-      className="modal"
-      aria-labelledby="contact-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        if (!save.isPending) onClose();
-      }}
-    >
-      <div className="modal-heading">
-        <div>
-          <p className="eyebrow">CONTATOS · ODOO</p>
-          <h2 id="contact-title">
-            {contact ? "Editar contato" : "Novo contato"}
-          </h2>
-        </div>
-        <Button
-          variant="outline"
-          aria-label="Fechar"
-          onClick={onClose}
-          disabled={save.isPending}
-        >
-          <X size={17} />
-        </Button>
-      </div>
-      <form
-        onSubmit={handleSubmit((input) => {
-          if (contact && !Object.keys(dirtyFields).length) return onClose();
-          save.mutate(input);
-        })}
-      >
-        {field("name", "Nome ou razão social")}
-        <div className="form-grid">
-          <label>
-            Pessoa
-            <select {...register("kind")}>
-              <option value="company">Jurídica (empresa)</option>
-              <option value="person">Física</option>
-            </select>
-          </label>
-          {field("document", "CPF/CNPJ")}
-          {field("email", "E-mail", "email")}
-          {field("phone", "Telefone", "tel")}
-          {field("street", "Endereço")}
-          {field("city", "Cidade")}
-          {field("zip", "CEP")}
-          {roles && (
-            <div className="checkbox-group">
-              <label className="checkbox">
-                <input type="checkbox" {...register("customer")} />
-                Cliente
-              </label>
-              <label className="checkbox">
-                <input type="checkbox" {...register("supplier")} />
-                Fornecedor
-              </label>
-            </div>
-          )}
-        </div>
-        {save.error && (
-          <p role="alert" className="error">
-            {save.error.message}
-          </p>
-        )}
-        <div className="form-actions">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={save.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button disabled={save.isPending}>
-            {save.isPending
-              ? "Gravando no Odoo…"
-              : contact
-                ? "Salvar alterações"
-                : "Cadastrar contato"}
-          </Button>
-        </div>
-      </form>
-    </dialog>
-  );
-}

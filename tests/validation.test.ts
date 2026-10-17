@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { BadRequestException } from "@nestjs/common";
 import { updateTenantInput } from "../services/api/src/core";
 import { parse } from "../services/api/src/auth";
-import { odooProductUpdate } from "../services/api/src/odoo-products";
+import { z } from "zod";
 import { rolePresets } from "../packages/shared/permissions";
 test("administrador não consegue suspender a própria empresa", () => {
   assert.equal(updateTenantInput.safeParse({ active: false }).success, false);
@@ -15,7 +15,7 @@ test("administrador não consegue suspender a própria empresa", () => {
 });
 test("erro de validação traz mensagem legível para a interface", () => {
   try {
-    parse(odooProductUpdate, { salePrice: "abc" });
+    parse(z.object({ salePrice: z.coerce.number() }), { salePrice: "abc" });
     assert.fail("deveria rejeitar");
   } catch (error) {
     assert.ok(error instanceof BadRequestException);

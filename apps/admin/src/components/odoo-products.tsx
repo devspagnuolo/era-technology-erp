@@ -1,9 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   ArrowUpRight,
   ChevronLeft,
@@ -12,11 +9,11 @@ import {
   Plus,
   Search,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { api } from "../lib/session";
 import { Button } from "./ui/button";
 import { OdooUnavailable, useOdooStatus } from "./odoo-status";
+import { OdooRecordDialog } from "./odoo-record-dialog";
 
 type Ref = { id: number; name: string } | null;
 export type OdooProduct = {
@@ -33,23 +30,6 @@ export type OdooProduct = {
   quantity: number | null;
   active: boolean;
 };
-type Options = {
-  categories: Array<{ id: number; name: string }>;
-  uoms: Array<{ id: number; name: string }>;
-};
-const decimal = /^\d{1,12}(\.\d{1,2})?$/;
-const schema = z.object({
-  name: z.string().trim().min(2, "Informe o nome"),
-  sku: z.string().trim().min(1, "Informe o código (SKU)"),
-  barcode: z.string().trim(),
-  salePrice: z.string().regex(decimal, "Use o formato 100.00"),
-  cost: z.string().regex(decimal, "Use o formato 100.00"),
-  categoryId: z.string(),
-  uomId: z.string(),
-  type: z.enum(["consu", "service"]),
-  tracksStock: z.boolean(),
-});
-type Input = z.infer<typeof schema>;
 const money = (value: string) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
     Number(value),
@@ -216,15 +196,15 @@ export function OdooProducts({
                           </td>
                           <td>
                             <div className="row-actions">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEditing(p)}
+                              >
+                                {canUpdate ? "Editar" : "Abrir"}
+                              </Button>
                               {canUpdate && (
                                 <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setEditing(p)}
-                                  >
-                                    Editar
-                                  </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -303,8 +283,18 @@ export function OdooProducts({
         </>
       )}
       {editing && (
-        <ProductDialog
-          product={editing === "new" ? undefined : editing}
+        <OdooRecordDialog
+          endpoint="odoo/products"
+          recordId={editing === "new" ? undefined : editing.id}
+          eyebrow="PRODUTOS · ODOO"
+          title={(form) =>
+            editing === "new"
+              ? "Novo produto"
+              : String(form?.values.name ?? editing.name)
+          }
+          canEdit={editing === "new" ? canCreate : canUpdate}
+          invalidate={["odoo-products"]}
+          createLabel="Cadastrar produto"
           onClose={() => setEditing(null)}
         />
       )}
@@ -312,194 +302,3 @@ export function OdooProducts({
   );
 }
 
-function ProductDialog({
-  product,
-  onClose,
-}: {
-  product?: OdooProduct;
-  onClose: () => void;
-}) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialog.current?.showModal();
-  }, []);
-  const cache = useQueryClient();
-  const options = useQuery({
-    queryKey: ["odoo-product-options"],
-    queryFn: () => api<Options>("odoo/products/options"),
-    staleTime: 5 * 60_000,
-  });
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, dirtyFields },
-  } = useForm<Input>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: product?.name ?? "",
-      sku: product?.sku ?? "",
-      barcode: product?.barcode ?? "",
-      salePrice: product?.salePrice ?? "0.00",
-      cost: product?.cost ?? "0.00",
-      categoryId: String(product?.category?.id ?? ""),
-      uomId: String(product?.uom?.id ?? ""),
-      type: product?.type === "service" ? "service" : "consu",
-      tracksStock: product ? product.tracksStock : true,
-    },
-  });
-  const save = useMutation({
-    mutationFn: (input: Input) => {
-      const body: Record<string, unknown> = {
-        name: input.name,
-        sku: input.sku,
-        barcode: input.barcode || null,
-        salePrice: input.salePrice,
-        cost: input.cost,
-        categoryId: input.categoryId ? Number(input.categoryId) : undefined,
-        uomId: input.uomId ? Number(input.uomId) : undefined,
-        type: input.type,
-        tracksStock: input.type === "consu" && input.tracksStock,
-      };
-      if (!product)
-        return api("odoo/products", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-      // Na edição, envia apenas o que mudou para não sobrescrever o Odoo.
-      const changed = Object.fromEntries(
-        Object.entries(body).filter(
-          ([key]) =>
-            dirtyFields[key as keyof Input] ||
-            (key === "tracksStock" && dirtyFields.type),
-        ),
-      );
-      return api("odoo/products/" + product.id, {
-        method: "PATCH",
-        body: JSON.stringify(changed),
-      });
-    },
-    onSuccess: () => {
-      void cache.invalidateQueries({ queryKey: ["odoo-products"] });
-      void cache.invalidateQueries({ queryKey: ["audit"] });
-      onClose();
-    },
-  });
-  const type = watch("type");
-  const field = (name: keyof Input, label: string, decimalInput = false) => (
-    <label>
-      {label}
-      <input
-        {...register(name)}
-        autoFocus={name === "name"}
-        aria-invalid={!!errors[name]}
-        inputMode={decimalInput ? "decimal" : "text"}
-      />
-      {errors[name] && <span className="error">{errors[name]?.message}</span>}
-    </label>
-  );
-  return (
-    <dialog
-      ref={dialog}
-      className="modal"
-      aria-labelledby="product-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        if (!save.isPending) onClose();
-      }}
-    >
-      <div className="modal-heading">
-        <div>
-          <p className="eyebrow">CATÁLOGO · ODOO</p>
-          <h2 id="product-title">
-            {product ? "Editar produto" : "Novo produto"}
-          </h2>
-        </div>
-        <Button
-          variant="outline"
-          aria-label="Fechar"
-          onClick={onClose}
-          disabled={save.isPending}
-        >
-          <X size={17} />
-        </Button>
-      </div>
-      <form
-        onSubmit={handleSubmit((input) => {
-          if (product && !Object.keys(dirtyFields).length) return onClose();
-          save.mutate(input);
-        })}
-      >
-        {field("name", "Nome do produto")}
-        <div className="form-grid">
-          {field("sku", "Código (SKU)")}
-          {field("barcode", "Código de barras")}
-          {field("salePrice", "Preço de venda (R$)", true)}
-          {field("cost", "Custo (R$)", true)}
-          <label>
-            Categoria
-            <select {...register("categoryId")} disabled={options.isPending}>
-              <option value="">Padrão do Odoo</option>
-              {options.data?.categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Unidade
-            <select {...register("uomId")} disabled={options.isPending}>
-              <option value="">Padrão do Odoo</option>
-              {options.data?.uoms.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Tipo
-            <select {...register("type")}>
-              <option value="consu">Produto (mercadoria)</option>
-              <option value="service">Serviço</option>
-            </select>
-          </label>
-          {type === "consu" && (
-            <label className="checkbox">
-              <input type="checkbox" {...register("tracksStock")} />
-              Controlar estoque
-            </label>
-          )}
-        </div>
-        {options.error && (
-          <p role="alert" className="error">
-            {options.error.message}
-          </p>
-        )}
-        {save.error && (
-          <p role="alert" className="error">
-            {save.error.message}
-          </p>
-        )}
-        <div className="form-actions">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={save.isPending}
-          >
-            Cancelar
-          </Button>
-          <Button disabled={save.isPending}>
-            {save.isPending
-              ? "Gravando no Odoo…"
-              : product
-                ? "Salvar alterações"
-                : "Cadastrar produto"}
-          </Button>
-        </div>
-      </form>
-    </dialog>
-  );
-}

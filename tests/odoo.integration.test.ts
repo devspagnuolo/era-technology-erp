@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import {
+  BadRequestException,
   NotFoundException,
   ConflictException,
   UnprocessableEntityException,
@@ -12,6 +13,7 @@ import { OdooProducts } from "../services/api/src/odoo-products";
 import { OdooContacts } from "../services/api/src/odoo-contacts";
 import { OdooSales } from "../services/api/src/odoo-sales";
 import { OdooScope } from "../services/api/src/odoo-scope";
+import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooStatusController } from "../services/api/src/odoo-status";
 import { Database } from "../services/api/src/database";
 import { AuthRequest } from "../services/api/src/auth";
@@ -58,52 +60,76 @@ const as = (tenantId: string) =>
     principal: { tenantId, userId: "tester" },
     ip: "127.0.0.1",
   }) as AuthRequest;
+type Ref = { id: number; name: string };
+const services = (scope: OdooScope) => {
+  const forms = new OdooForms(scope.odoo);
+  return {
+    products: new OdooProducts(scope, forms),
+    contacts: new OdooContacts(scope, forms),
+    sales: new OdooSales(scope, forms),
+  };
+};
+
 test(
-  "produtos são lidos e gravados no Odoo com isolamento por empresa",
+  "produtos: formulário completo do Odoo, gravação e isolamento por empresa",
   { skip: !ready },
   async () => {
     const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
     const [a, b] = Object.keys(companies);
     const audits: Array<{ action: string; recordId: string }> = [];
     const db = fakeDb(audits);
-    const products = new OdooProducts(scopeFor(db, companies));
+    const { products } = services(scopeFor(db, companies));
     const sku = "ERA-" + randomUUID().slice(0, 8);
     const status = await new OdooStatusController(
       scopeFor(db, companies),
     ).status(as(a));
     assert.equal(status.connected, true);
     assert.equal(status.linked, true);
-    const options = await products.options(as(a));
-    assert.ok(options.uoms.length > 0);
-    const created = await products.create(as(a), {
-      name: "Camiseta ERA",
-      sku,
-      salePrice: "49.90",
-      cost: "20.00",
+    const blank = await products.records.form(as(a));
+    // Campos além do básico, vindos das abas do Odoo, sem a empresa.
+    for (const name of ["name", "default_code", "list_price", "categ_id"])
+      assert.ok(blank.schema.fields[name], name);
+    assert.ok(blank.schema.sections.length > 1);
+    assert.equal(blank.schema.fields.company_id, undefined);
+    await assert.rejects(
+      () =>
+        products.records.create(as(a), {
+          values: { name: "X", company_id: 2 },
+        }),
+      BadRequestException,
+    );
+    const created = await products.records.create(as(a), {
+      values: {
+        name: "Camiseta ERA",
+        default_code: sku,
+        list_price: 49.9,
+        standard_price: 20,
+      },
     });
-    assert.equal(created.salePrice, "49.90");
-    assert.equal(created.sku, sku);
+    const id = created.id as number;
+    assert.equal(created.list_price, 49.9);
+    assert.equal(created.default_code, sku);
     const listA = await products.list(as(a), { q: sku });
     assert.equal(listA.total, 1);
+    assert.equal(listA.items[0].salePrice, "49.90");
     assert.equal((await products.list(as(b), { q: sku })).total, 0);
     await assert.rejects(
-      () => products.update(as(b), created.id, { name: "Invasão" }),
+      () => products.records.update(as(b), id, { values: { name: "Invasão" } }),
       NotFoundException,
     );
     await assert.rejects(
-      () => products.create(as(a), { name: "Duplicado", sku, salePrice: "1" }),
+      () =>
+        products.records.create(as(a), {
+          values: { name: "Duplicado", default_code: sku },
+        }),
       ConflictException,
     );
-    const updated = await products.update(as(a), created.id, {
-      salePrice: "59.90",
-      uomId: options.uoms[0].id,
+    const updated = await products.records.update(as(a), id, {
+      values: { list_price: 59.9 },
     });
-    assert.equal(updated.salePrice, "59.90");
+    assert.equal(updated.list_price, 59.9);
     assert.equal(updated.name, "Camiseta ERA");
-    const archived = await products.update(as(a), created.id, {
-      active: false,
-    });
-    assert.equal(archived.active, false);
+    await products.records.update(as(a), id, { active: false });
     assert.equal((await products.list(as(a), { q: sku })).total, 0);
     assert.equal(
       (await products.list(as(a), { q: sku, status: "archived" })).total,
@@ -113,127 +139,146 @@ test(
       audits.map((entry) => entry.action),
       ["create", "update", "deactivate"],
     );
-    assert.equal(audits[0].recordId, "product.template:" + created.id);
+    assert.equal(audits[0].recordId, "product.template:" + id);
   },
 );
 
 test(
-  "contatos são lidos e gravados no Odoo com isolamento por empresa",
+  "contatos: formulário completo, papéis e isolamento por empresa",
   { skip: !ready },
   async () => {
     const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
     const [a, b] = Object.keys(companies);
     const audits: Array<{ action: string; recordId: string }> = [];
-    const contacts = new OdooContacts(scopeFor(fakeDb(audits), companies));
-    const document = "DOC-" + randomUUID().slice(0, 8);
-    const created = await contacts.create(as(a), {
-      name: "Fornecedor ERA",
-      document,
-      email: "compras@example.com",
-      customer: false,
-      supplier: true,
+    const { contacts } = services(scopeFor(fakeDb(audits), companies));
+    const tag = randomUUID().slice(0, 8);
+    const blank = await contacts.form(as(a));
+    assert.equal(blank.roles.customer, true);
+    for (const name of ["name", "email", "street", "city", "country_id"])
+      assert.ok(blank.schema.fields[name], name);
+    const created = await contacts.records.create(as(a), {
+      values: {
+        name: "Fornecedor " + tag,
+        ref: tag,
+        email: "compras@example.com",
+      },
+      extra: { customer: false, supplier: true },
     });
-    assert.equal(created.supplier, true);
-    assert.equal(created.customer, false);
-    const suppliers = await contacts.list(as(a), {
-      q: document,
-      role: "supplier",
-    });
+    const id = created.id as number;
+    const suppliers = await contacts.list(as(a), { q: tag, role: "supplier" });
     assert.equal(suppliers.total, 1);
     assert.equal(
-      (await contacts.list(as(a), { q: document, role: "customer" })).total,
+      (await contacts.list(as(a), { q: tag, role: "customer" })).total,
       0,
     );
-    assert.equal((await contacts.list(as(b), { q: document })).total, 0);
+    assert.equal((await contacts.list(as(b), { q: tag })).total, 0);
     await assert.rejects(
-      () => contacts.update(as(b), created.id, { name: "Invasão" }),
+      () => contacts.records.update(as(b), id, { values: { name: "Invasão" } }),
       NotFoundException,
     );
-    await assert.rejects(
-      () => contacts.create(as(a), { name: "Duplicado", document }),
-      ConflictException,
-    );
-    const updated = await contacts.update(as(a), created.id, {
-      customer: true,
-      phone: "11 99999-0000",
+    const updated = await contacts.records.update(as(a), id, {
+      values: { phone: "11 99999-0000" },
+      extra: { customer: true },
     });
-    assert.equal(updated.customer, true);
     assert.equal(updated.phone, "11 99999-0000");
-    const archived = await contacts.update(as(a), created.id, {
-      active: false,
-    });
-    assert.equal(archived.active, false);
+    assert.equal(
+      (await contacts.list(as(a), { q: tag, role: "customer" })).total,
+      1,
+    );
+    await contacts.records.update(as(a), id, { active: false });
     assert.deepEqual(
       audits.map((entry) => entry.action),
       ["create", "update", "deactivate"],
     );
-    assert.equal(audits[0].recordId, "res.partner:" + created.id);
+    assert.equal(audits[0].recordId, "res.partner:" + id);
   },
 );
 
 test(
-  "vendas: orçamento é criado, alterado, confirmado e cancelado no Odoo",
+  "vendas: orçamento é criado, recalculado, confirmado e cancelado no Odoo",
   { skip: !ready },
   async () => {
     const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
     const [a, b] = Object.keys(companies);
     const audits: Array<{ action: string; recordId: string }> = [];
-    const scope = scopeFor(fakeDb(audits), companies);
-    const sales = new OdooSales(scope);
+    const { contacts, products, sales } = services(
+      scopeFor(fakeDb(audits), companies),
+    );
     const tag = randomUUID().slice(0, 8);
-    const customer = await new OdooContacts(scope).create(as(a), {
-      name: "Cliente " + tag,
+    const customer = await contacts.records.create(as(a), {
+      values: { name: "Cliente " + tag },
     });
-    const product = await new OdooProducts(scope).create(as(a), {
-      name: "Produto " + tag,
-      sku: "VND-" + tag,
-      salePrice: "40.00",
+    await products.records.create(as(a), {
+      values: {
+        name: "Produto " + tag,
+        default_code: "VND-" + tag,
+        list_price: 40,
+      },
     });
-    const options = await sales.options(as(a), { q: tag });
+    const pick = (company: string, field: string, line?: string) =>
+      sales.records.lookup(as(company), {
+        field,
+        q: tag,
+        values: { partner_id: customer.id },
+        ...(line ? { line: { field: line, values: {} } } : {}),
+      }) as Promise<Ref[]>;
+    const found = await pick(a, "partner_id");
     assert.deepEqual(
-      options.customers.map((c) => c.id),
+      found.map((c) => c.id),
       [customer.id],
     );
-    assert.equal(options.products.length, 1);
-    const variant = options.products[0];
-    assert.equal(variant.price, "40.00");
-    assert.equal((await sales.options(as(b), { q: tag })).products.length, 0);
-    const created = await sales.create(as(a), {
-      customerId: customer.id,
-      note: "Entrega pela manhã",
-      lines: [{ productId: variant.id, quantity: 2 }],
+    const [variant] = await pick(a, "order_line", "product_id");
+    assert.ok(variant);
+    assert.equal((await pick(b, "order_line", "product_id")).length, 0);
+    // Ao escolher o produto, o Odoo preenche descrição, quantidade e preço.
+    const blank = await sales.form(as(a));
+    const { line } = (await sales.records.onchange(as(a), {
+      values: { ...blank.values, partner_id: customer.id },
+      field: "order_line",
+      line: { values: { product_id: variant.id }, field: "product_id" },
+    })) as { line: Record<string, unknown> };
+    assert.equal(line.price_unit, 40);
+    const created = await sales.records.create(as(a), {
+      values: {
+        partner_id: customer.id,
+        order_line: [{ product_id: variant.id, product_uom_qty: 2 }],
+      },
     });
-    assert.equal(created.stage, "quotation");
-    assert.equal(created.lines.length, 1);
-    assert.equal(created.lines[0].price, "40.00");
-    assert.equal(created.lines[0].subtotal, "80.00");
-    assert.equal(created.note, "Entrega pela manhã");
-    await assert.rejects(() => sales.get(as(b), created.id), NotFoundException);
+    const id = created.id as number;
+    const rows = created.order_line as Array<Record<string, unknown>>;
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].price_unit, 40);
+    assert.equal(rows[0].price_subtotal, 80);
+    await assert.rejects(() => sales.form(as(b), id), NotFoundException);
     await assert.rejects(
       () =>
-        sales.create(as(b), {
-          customerId: customer.id,
-          lines: [{ productId: variant.id, quantity: 1 }],
+        sales.records.create(as(b), {
+          values: {
+            partner_id: customer.id,
+            order_line: [{ product_id: variant.id, product_uom_qty: 1 }],
+          },
         }),
       NotFoundException,
     );
-    const updated = await sales.update(as(a), created.id, {
-      lines: [{ productId: variant.id, quantity: 3, price: "30.00" }],
+    await sales.records.update(as(a), id, {
+      values: {
+        order_line: [{ id: rows[0].id, product_uom_qty: 3, price_unit: 30 }],
+      },
     });
-    assert.equal(updated.lines.length, 1);
-    assert.equal(updated.untaxed, "90.00");
-    const listed = await sales.list(as(a), { q: created.number });
+    const summary = (await sales.form(as(a), id)).summary!;
+    assert.equal(summary.untaxed, "90.00");
+    const listed = await sales.list(as(a), { q: summary.number });
     assert.equal(listed.total, 1);
-    assert.equal((await sales.list(as(b), { q: created.number })).total, 0);
-    const confirmed = await sales.confirm(as(a), created.id);
+    assert.equal((await sales.list(as(b), { q: summary.number })).total, 0);
+    const confirmed = await sales.confirm(as(a), id);
     assert.equal(confirmed.stage, "order");
     await assert.rejects(
-      () => sales.update(as(a), created.id, { note: "tarde" }),
+      () => sales.reopen(as(a), id),
       UnprocessableEntityException,
     );
-    const cancelled = await sales.cancel(as(a), created.id);
+    const cancelled = await sales.cancel(as(a), id);
     assert.equal(cancelled.stage, "cancelled");
-    const reopened = await sales.reopen(as(a), created.id);
+    const reopened = await sales.reopen(as(a), id);
     assert.equal(reopened.stage, "quotation");
     assert.deepEqual(
       audits
