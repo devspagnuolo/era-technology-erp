@@ -14,6 +14,7 @@ import { OdooContacts } from "../services/api/src/odoo-contacts";
 import { OdooSales } from "../services/api/src/odoo-sales";
 import { OdooPurchases } from "../services/api/src/odoo-purchases";
 import { OdooTransfers } from "../services/api/src/odoo-transfers";
+import { OdooInvoices } from "../services/api/src/odoo-invoices";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooStatusController } from "../services/api/src/odoo-status";
@@ -71,6 +72,7 @@ const services = (scope: OdooScope) => {
     sales: new OdooSales(scope, forms).orders,
     purchases: new OdooPurchases(scope, forms).orders,
     transfers: new OdooTransfers(scope, forms),
+    invoices: new OdooInvoices(scope, forms),
   };
 };
 
@@ -483,6 +485,135 @@ test(
         "assign",
         "validate",
       ],
+    );
+  },
+);
+
+test(
+  "faturas: fatura de cliente é confirmada e paga; conta de fornecedor separada",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const audits: Array<{ action: string; recordId: string }> = [];
+    const { contacts, products, invoices } = services(
+      scopeFor(fakeDb(audits), companies),
+    );
+    const tag = randomUUID().slice(0, 8);
+    const customer = await contacts.records.create(as(a), {
+      values: { name: "Cliente fatura " + tag },
+    });
+    await products.records.create(as(a), {
+      values: {
+        name: "Serviço " + tag,
+        default_code: "FAT-" + tag,
+        list_price: 50,
+      },
+    });
+    const blank = await invoices.form(as(a), undefined, { side: "customer" });
+    assert.equal(blank.values.move_type, "out_invoice");
+    for (const name of [
+      "partner_id",
+      "invoice_line_ids",
+      "invoice_payment_term_id",
+    ])
+      assert.ok(blank.schema.fields[name], name);
+    const lineFields = blank.schema.fields.invoice_line_ids.sub!.fields;
+    const [variant] = (await invoices.records.lookup(as(a), {
+      field: "invoice_line_ids",
+      q: tag,
+      values: blank.values,
+      line: { field: "product_id", values: {} },
+    })) as Ref[];
+    assert.ok(variant);
+    // Como no painel: o Odoo completa o item ao escolher o produto.
+    const { line: filled } = (await invoices.records.onchange(as(a), {
+      values: { ...blank.values, partner_id: customer.id },
+      field: "invoice_line_ids",
+      line: { values: { product_id: variant.id }, field: "product_id" },
+    })) as { line: Record<string, unknown> };
+    assert.equal(filled.price_unit, 50);
+    const line = Object.fromEntries(
+      Object.entries(filled)
+        .filter(([k]) => k in lineFields)
+        .map(([k, v]) => [
+          k,
+          Array.isArray(v)
+            ? v.map((x) => (x && typeof x === "object" ? (x as Ref).id : x))
+            : v && typeof v === "object" && "id" in v
+              ? (v as Ref).id
+              : v,
+        ]),
+    );
+    await assert.rejects(
+      () =>
+        invoices.records.create(as(a), {
+          values: { partner_id: customer.id },
+          extra: { move_type: "entry" },
+        }),
+      UnprocessableEntityException,
+    );
+    const created = await invoices.records.create(as(a), {
+      values: {
+        partner_id: customer.id,
+        ref: "PED-" + tag,
+        invoice_line_ids: [
+          { ...line, product_id: variant.id, quantity: 2, tax_ids: [] },
+        ],
+      },
+      extra: { move_type: "out_invoice" },
+    });
+    const id = created.id as number;
+    let summary = await invoices.summary(as(a), id);
+    assert.equal(summary.stage, "draft");
+    assert.equal(summary.total, "100.00");
+    await assert.rejects(() => invoices.form(as(b), id), NotFoundException);
+    const posted = await invoices.run(as(a), id, "post");
+    assert.equal(posted.stage, "open");
+    assert.ok(posted.number);
+    assert.equal(posted.residual, "100.00");
+    assert.equal(
+      (
+        await invoices.list(as(a), {
+          side: "customer",
+          q: "PED-" + tag,
+          stage: "open",
+        })
+      ).total,
+      1,
+    );
+    assert.equal(
+      (await invoices.list(as(a), { side: "vendor", q: "PED-" + tag })).total,
+      0,
+    );
+    assert.equal(
+      (await invoices.list(as(b), { side: "customer", q: "PED-" + tag })).total,
+      0,
+    );
+    const paid = await invoices.run(as(a), id, "pay");
+    assert.equal(paid.stage, "paid");
+    assert.equal(paid.residual, "0.00");
+    await assert.rejects(
+      () => invoices.run(as(a), id, "pay"),
+      UnprocessableEntityException,
+    );
+    // Conta a pagar: rascunho de fornecedor, cancelado.
+    const bill = await invoices.records.create(as(a), {
+      values: { partner_id: customer.id, ref: "NF-" + tag },
+      extra: { move_type: "in_invoice" },
+    });
+    const billId = bill.id as number;
+    assert.equal(
+      (await invoices.list(as(a), { side: "vendor", q: "NF-" + tag })).total,
+      1,
+    );
+    const cancelled = await invoices.run(as(a), billId, "cancel");
+    assert.equal(cancelled.stage, "cancelled");
+    assert.deepEqual(
+      audits
+        .filter((e) => e.recordId.startsWith("account.move:"))
+        .map((e) => e.action),
+      ["create", "post", "pay", "create", "cancel"],
     );
   },
 );
