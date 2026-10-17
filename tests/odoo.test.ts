@@ -12,24 +12,15 @@ import {
   readOdooConfig,
   translate,
 } from "../services/api/src/odoo";
+import { toEra } from "../services/api/src/odoo-products";
+import { stageOf } from "../services/api/src/odoo-sales";
+import { parseArch } from "../services/api/src/odoo-arch";
 import {
-  odooProductInput,
-  odooProductUpdate,
-  toEra,
-  toOdoo,
-} from "../services/api/src/odoo-products";
-import {
-  contactInput,
-  contactUpdate,
-  toOdooContact,
-} from "../services/api/src/odoo-contacts";
-import {
-  plainNote,
-  saleInput,
-  saleUpdate,
-  stageOf,
-  toOdooSale,
-} from "../services/api/src/odoo-sales";
+  buildSchema,
+  isReadonly,
+  toOdooValues,
+} from "../services/api/src/odoo-form";
+import { check, evaluate, names } from "../packages/shared/odoo-expr";
 test("vínculo empresa ERA → empresa Odoo vem do ambiente", () => {
   assert.deepEqual(parseCompanies("era-demo:1, loja-2 : 4,"), {
     "era-demo": 1,
@@ -74,27 +65,7 @@ test("erros de regra do Odoo chegam ao usuário; erros internos não", () => {
   assert.ok(internal instanceof BadGatewayException);
   assert.doesNotMatch(internal.message, /Traceback/);
 });
-test("mapeia campos ERA ↔ Odoo sem aceitar empresa ou campos livres", () => {
-  assert.equal(
-    odooProductInput.safeParse({
-      name: "X",
-      sku: "1",
-      salePrice: "1",
-      company_id: 2,
-    }).success,
-    false,
-  );
-  assert.equal(odooProductUpdate.safeParse({}).success, false);
-  assert.deepEqual(
-    toOdoo(
-      odooProductUpdate.parse({ salePrice: "10.50", uomId: 3, barcode: "" }),
-    ),
-    { list_price: 10.5, uom_id: 3, uom_po_id: 3, barcode: false },
-  );
-  assert.equal(
-    toOdoo({ type: "service", tracksStock: true }).is_storable,
-    false,
-  );
+test("produtos e vendas: leitura da lista e situação do pedido", () => {
   assert.deepEqual(
     toEra({
       id: 7,
@@ -123,84 +94,200 @@ test("mapeia campos ERA ↔ Odoo sem aceitar empresa ou campos livres", () => {
       active: true,
     },
   );
-});
-test("contatos: mapeia papéis só quando o Odoo tem Faturamento", () => {
-  const input = contactUpdate.parse({
-    document: "",
-    customer: true,
-    supplier: false,
-    kind: "person",
-  });
-  assert.deepEqual(toOdooContact(input, true), {
-    vat: false,
-    is_company: false,
-    customer_rank: 1,
-    supplier_rank: 0,
-  });
-  assert.deepEqual(toOdooContact(input, false), {
-    vat: false,
-    is_company: false,
-  });
-  assert.equal(
-    contactInput.safeParse({ name: "X Ltda", company_id: 2 }).success,
-    false,
-  );
-  assert.equal(
-    contactInput.safeParse({ name: "X Ltda", email: "x" }).success,
-    false,
-  );
-  assert.equal(contactInput.parse({ name: "X Ltda" }).customer, true);
-});
-test("vendas: itens substituem as linhas e o Odoo calcula o preço padrão", () => {
-  const input = saleInput.parse({
-    customerId: 15,
-    note: "Entregar <manhã>\nPortão 2",
-    lines: [
-      { productId: 7, quantity: 2 },
-      { productId: 8, quantity: 1, price: "30.00", discount: 10 },
-    ],
-  });
-  assert.deepEqual(toOdooSale(input), {
-    partner_id: 15,
-    note: "<p>Entregar &lt;manhã&gt;</p><p>Portão 2</p>",
-    order_line: [
-      [5, 0, 0],
-      [0, 0, { product_id: 7, product_uom_qty: 2 }],
-      [
-        0,
-        0,
-        { product_id: 8, product_uom_qty: 1, price_unit: 30, discount: 10 },
-      ],
-    ],
-  });
-  assert.equal(
-    plainNote("<p>Entregar &lt;manhã&gt;</p><p>Portão 2</p>"),
-    "Entregar <manhã>\nPortão 2",
-  );
-  assert.deepEqual(toOdooSale(saleUpdate.parse({ validUntil: null })), {
-    validity_date: false,
-  });
-  assert.equal(
-    saleInput.safeParse({ customerId: 1, lines: [] }).success,
-    false,
-  );
-  assert.equal(
-    saleInput.safeParse({
-      customerId: 1,
-      company_id: 2,
-      lines: [{ productId: 1, quantity: 1 }],
-    }).success,
-    false,
-  );
-  assert.equal(
-    saleInput.safeParse({
-      customerId: 1,
-      lines: [{ productId: 1, quantity: 0 }],
-    }).success,
-    false,
-  );
   assert.deepEqual(
     (["draft", "sent", "sale", "cancel"] as const).map(stageOf),
     ["quotation", "quotation", "order", "cancelled"],
+  );
+});
+
+test("expressões do Odoo: condições de tela e domínios", () => {
+  const scope = {
+    state: "draft",
+    partner_id: { id: 5, name: "Cliente" },
+    tag_ids: [{ id: 1, name: "A" }],
+    parent: { state: "sale" },
+    qty: 2,
+  };
+  assert.equal(check("state in ['sale', 'cancel']", scope), false);
+  assert.equal(check("parent.state == 'sale'", scope), true);
+  assert.equal(check("not partner_id or qty > 3", scope), false);
+  assert.equal(check("context.get('x')", scope), false);
+  assert.equal(check("1", {}), true);
+  assert.deepEqual(
+    evaluate("[('id', '!=', partner_id)] + [('x', 'in', tag_ids)]", scope),
+    [
+      ["id", "!=", 5],
+      ["x", "in", [1]],
+    ],
+  );
+  assert.equal(evaluate("'a' if qty == 2 else 'b'", scope), "a");
+  assert.deepEqual(names("parent.state == 'x' or not partner_id"), [
+    "partner_id",
+  ]);
+  // Expressão inválida nunca libera nem quebra a tela.
+  assert.equal(check("state ==", scope), false);
+});
+
+const ARCH = `<form>
+  <header><button name="go"/><field name="state" widget="statusbar"/></header>
+  <sheet>
+    <div class="oe_button_box" name="button_box"><button name="x"/></div>
+    <field name="name" required="1" placeholder="Nome &amp; sobrenome"/>
+    <group string="Dados">
+      <field name="is_company" on_change="1"/>
+      <field name="email" invisible="is_company"/>
+      <field name="secret" invisible="1"/>
+      <field name="company_id"/>
+    </group>
+    <notebook>
+      <page string="Itens" invisible="state == 'cancel'">
+        <field name="line_ids">
+          <list>
+            <field name="order_id"/>
+            <field name="product_id" readonly="not product_updatable"/>
+            <field name="qty" column_invisible="parent.state == 'sale'"/>
+          </list>
+        </field>
+      </page>
+    </notebook>
+  </sheet>
+  <chatter/>
+</form>`;
+const MODELS = {
+  "x.order": {
+    fields: {
+      name: { name: "name", type: "char", string: "Nome" },
+      state: {
+        name: "state",
+        type: "selection",
+        string: "Situação",
+        selection: [["draft", "Rascunho"]] as Array<[string, string]>,
+      },
+      is_company: { name: "is_company", type: "boolean", string: "Empresa" },
+      email: { name: "email", type: "char", string: "E-mail" },
+      secret: { name: "secret", type: "char", string: "Segredo" },
+      company_id: {
+        name: "company_id",
+        type: "many2one",
+        string: "Empresa",
+        relation: "res.company",
+      },
+      line_ids: {
+        name: "line_ids",
+        type: "one2many",
+        string: "Itens",
+        relation: "x.line",
+        relation_field: "order_id",
+      },
+    },
+  },
+  "x.line": {
+    fields: {
+      order_id: {
+        name: "order_id",
+        type: "many2one",
+        string: "Pedido",
+        relation: "x.order",
+      },
+      product_id: {
+        name: "product_id",
+        type: "many2one",
+        string: "Variante",
+        relation: "product.product",
+      },
+      product_updatable: {
+        name: "product_updatable",
+        type: "boolean",
+        string: "Pode trocar",
+      },
+      qty: { name: "qty", type: "float", string: "Quantidade" },
+    },
+  },
+};
+
+test("formulário vem da tela do Odoo: abas, grupos, condições e itens", () => {
+  const schema = buildSchema("x.order", parseArch(ARCH), MODELS, {
+    hidden: ["company_id"],
+    labels: { product_id: "Produto" },
+  });
+  assert.deepEqual(schema.sections, [
+    { title: "Geral", fields: ["name", "is_company", "email"] },
+    { title: "Itens", fields: ["line_ids"] },
+  ]);
+  const { name, email, is_company, line_ids } = schema.fields;
+  assert.equal(name.required, true);
+  assert.equal(name.placeholder, "Nome & sobrenome");
+  assert.equal(email.invisibleIf, "is_company");
+  assert.equal(email.group, "Dados");
+  assert.equal(is_company.onChange, true);
+  assert.equal(line_ids.invisibleIf, "state == 'cancel'");
+  // Situação (barra de status), botões e campos ocultos ficam fora.
+  assert.equal(schema.fields.state, undefined);
+  assert.equal(schema.fields.secret, undefined);
+  assert.deepEqual(schema.deps, ["state"]);
+  const sub = line_ids.sub!;
+  assert.equal(sub.inverse, "order_id");
+  assert.deepEqual(sub.columns, ["product_id", "qty"]);
+  assert.equal(sub.fields.product_id.label, "Produto");
+  assert.equal(sub.fields.qty.columnInvisibleIf, "parent.state == 'sale'");
+  assert.deepEqual(sub.deps, ["product_updatable"]);
+  // Somente leitura condicional só vale quando o Odoo informou as dependências.
+  assert.equal(isReadonly(sub.fields.product_id, {}), false);
+  assert.equal(
+    isReadonly(sub.fields.product_id, { product_updatable: false }),
+    true,
+  );
+});
+
+test("gravação aceita só campos da tela e vira comandos do Odoo", () => {
+  const schema = buildSchema("x.order", parseArch(ARCH), MODELS, {
+    hidden: ["company_id"],
+  });
+  const refs = new Map<string, Set<number>>();
+  assert.throws(
+    () => toOdooValues(schema.fields, { company_id: 2 }, {}, refs),
+    /Campo não permitido: company_id/,
+  );
+  assert.throws(
+    () => toOdooValues(schema.fields, { secret: "x" }, {}, refs),
+    /Campo não permitido/,
+  );
+  const current = {
+    id: 9,
+    line_ids: [
+      { id: 31, product_id: { id: 1, name: "A" }, qty: 1 },
+      { id: 32, product_id: { id: 2, name: "B" }, qty: 1 },
+    ],
+  };
+  const out = toOdooValues(
+    schema.fields,
+    {
+      name: "Pedido",
+      email: "",
+      line_ids: [
+        { id: 31, qty: 3 },
+        { product_id: 4, qty: 1 },
+      ],
+    },
+    current,
+    refs,
+  );
+  assert.equal(out.name, "Pedido");
+  assert.equal(out.email, false);
+  assert.deepEqual(out.line_ids, [
+    [1, 31, { qty: 3 }],
+    [0, 0, { product_id: 4, qty: 1 }],
+    [2, 32],
+  ]);
+  assert.deepEqual([...(refs.get("product.product") ?? [])], [4]);
+  assert.throws(
+    () =>
+      toOdooValues(
+        schema.fields,
+        { line_ids: [{ id: 99, qty: 1 }] },
+        current,
+        refs,
+      ),
+    /não pertence/,
   );
 });

@@ -5,7 +5,6 @@ import {
   Get,
   Inject,
   Injectable,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -16,48 +15,14 @@ import {
 import { z } from "zod";
 import { AuthRequest, Permission, parse } from "./auth";
 import { Domain, OdooClient } from "./odoo";
-import { OdooScope, auditAction } from "./odoo-scope";
+import { OdooScope } from "./odoo-scope";
+import { OdooForms } from "./odoo-form";
+import { OdooRecords, recordId } from "./odoo-records";
 
 // Produtos vivem no Odoo (product.template). A ERA consulta e grava por meio da
-// API do Odoo e registra cada alteração na própria auditoria.
+// API do Odoo e registra cada alteração na própria auditoria. O formulário
+// completo vem da própria tela de produto do Odoo (ver odoo-form.ts).
 const MODEL = "product.template";
-const price = z
-  .string()
-  .regex(
-    /^\d{1,12}(\.\d{1,2})?$/,
-    "Informe um valor positivo com até duas casas decimais",
-  );
-const fields = {
-  name: z.string().trim().min(2).max(200),
-  sku: z.string().trim().min(1).max(64),
-  barcode: z.string().trim().max(64).nullable(),
-  salePrice: price,
-  cost: price,
-  categoryId: z.number().int().positive(),
-  uomId: z.number().int().positive(),
-  type: z.enum(["consu", "service"]),
-  tracksStock: z.boolean(),
-};
-export const odooProductInput = z
-  .object({
-    ...fields,
-    barcode: fields.barcode.optional(),
-    cost: fields.cost.default("0"),
-    categoryId: fields.categoryId.optional(),
-    uomId: fields.uomId.optional(),
-    type: fields.type.default("consu"),
-    tracksStock: fields.tracksStock.default(true),
-  })
-  .strict();
-export const odooProductUpdate = z
-  .object(fields)
-  .partial()
-  .extend({ active: z.boolean().optional() })
-  .strict()
-  .refine(
-    (value) => Object.values(value).some((v) => v !== undefined),
-    "Informe ao menos um campo para alterar",
-  );
 const searchInput = z.object({
   q: z.string().trim().max(100).default(""),
   status: z.enum(["active", "archived", "all"]).default("active"),
@@ -109,32 +74,27 @@ export function toEra(product: OdooProduct) {
     active: product.active,
   };
 }
-export function toOdoo(input: z.infer<typeof odooProductUpdate>) {
-  const values: Record<string, unknown> = {};
-  if (input.name !== undefined) values.name = input.name;
-  if (input.sku !== undefined) values.default_code = input.sku;
-  if (input.barcode !== undefined) values.barcode = input.barcode || false;
-  if (input.salePrice !== undefined)
-    values.list_price = Number(input.salePrice);
-  if (input.cost !== undefined) values.standard_price = Number(input.cost);
-  if (input.categoryId !== undefined) values.categ_id = input.categoryId;
-  if (input.uomId !== undefined) {
-    values.uom_id = input.uomId;
-    values.uom_po_id = input.uomId;
-  }
-  if (input.type !== undefined) values.type = input.type;
-  if (input.tracksStock !== undefined)
-    values.is_storable = input.type === "service" ? false : input.tracksStock;
-  if (input.active !== undefined) values.active = input.active;
-  return values;
-}
-
 @Injectable()
 export class OdooProducts {
   private optionalFields: Promise<string[]> | null = null;
   private odoo: OdooClient;
-  constructor(@Inject(OdooScope) private scope: OdooScope) {
+  readonly records: OdooRecords;
+  constructor(
+    @Inject(OdooScope) private scope: OdooScope,
+    @Inject(OdooForms) forms: OdooForms,
+  ) {
     this.odoo = scope.odoo;
+    this.records = new OdooRecords(scope, forms, {
+      model: MODEL,
+      module: "odoo.products",
+      notFound: "Produto não encontrado",
+      form: { hidden: ["company_id"] },
+      prepare: async ({ companyId, values, current }) => {
+        const sku = values.default_code;
+        if (typeof sku === "string" && sku !== current?.default_code)
+          await this.assertUniqueSku(companyId, sku, current?.id as number);
+      },
+    });
   }
 
   async list(req: AuthRequest, raw: unknown) {
@@ -172,95 +132,6 @@ export class OdooProducts {
     return { items: items.map(toEra), total, page, pageSize };
   }
 
-  async options(req: AuthRequest) {
-    const companyId = await this.scope.company(req);
-    const [categories, uoms] = await Promise.all([
-      this.odoo.execute<Array<{ id: number; complete_name: string }>>(
-        companyId,
-        "product.category",
-        "search_read",
-        [[]],
-        { fields: ["complete_name"], order: "complete_name asc", limit: 500 },
-      ),
-      this.odoo.execute<Array<{ id: number; name: string }>>(
-        companyId,
-        "uom.uom",
-        "search_read",
-        [[]],
-        { fields: ["name"], order: "name asc", limit: 500 },
-      ),
-    ]);
-    return {
-      categories: categories.map((c) => ({ id: c.id, name: c.complete_name })),
-      uoms: uoms.map((u) => ({ id: u.id, name: u.name })),
-    };
-  }
-
-  async create(req: AuthRequest, raw: unknown) {
-    const input = parse(odooProductInput, raw);
-    const companyId = await this.scope.company(req);
-    await this.assertUniqueSku(companyId, input.sku);
-    const values = { ...toOdoo(input), company_id: companyId };
-    const [id] = await this.odoo.execute<number[]>(companyId, MODEL, "create", [
-      [values],
-    ]);
-    const after = await this.read(companyId, id);
-    await this.scope.audit(
-      req,
-      "odoo.products",
-      MODEL,
-      "create",
-      id,
-      null,
-      after,
-    );
-    return after;
-  }
-
-  async update(req: AuthRequest, id: number, raw: unknown) {
-    const input = parse(odooProductUpdate, raw);
-    const companyId = await this.scope.company(req);
-    const before = await this.read(companyId, id);
-    if (input.sku !== undefined && input.sku !== before.sku)
-      await this.assertUniqueSku(companyId, input.sku, id);
-    // is_storable depende do tipo; mantém o tipo atual quando não informado.
-    const values = toOdoo({ type: before.type as "consu", ...input });
-    if (input.type === undefined) delete values.type;
-    if (input.tracksStock === undefined) delete values.is_storable;
-    await this.odoo.execute(companyId, MODEL, "write", [[id], values]);
-    const after = await this.read(companyId, id);
-    await this.scope.audit(
-      req,
-      "odoo.products",
-      MODEL,
-      auditAction(input.active, before.active),
-      id,
-      before,
-      after,
-    );
-    return after;
-  }
-
-  private async read(companyId: number, id: number) {
-    const [product] = await this.odoo.execute<OdooProduct[]>(
-      companyId,
-      MODEL,
-      "search_read",
-      [
-        [
-          ["id", "=", id],
-          ["company_id", "=", companyId],
-        ],
-      ],
-      {
-        fields: [...READ_FIELDS, ...(await this.extraFields(companyId))],
-        context: { active_test: false },
-      },
-    );
-    if (!product) throw new NotFoundException("Produto não encontrado");
-    return toEra(product);
-  }
-
   private async assertUniqueSku(companyId: number, sku: string, id?: number) {
     const domain: Domain = [
       ["company_id", "=", companyId],
@@ -291,31 +162,48 @@ export class OdooProducts {
   }
 }
 
-@Controller("odoo")
+@Controller("odoo/products")
 export class OdooProductsController {
   constructor(@Inject(OdooProducts) private products: OdooProducts) {}
-  @Get("products") @Permission("products:read") list(
+  @Get() @Permission("products:read") list(
     @Req() req: AuthRequest,
     @Query() query: unknown,
   ) {
     return this.products.list(req, query);
   }
-  @Get("products/options") @Permission("products:read") options(
-    @Req() req: AuthRequest,
-  ) {
-    return this.products.options(req);
+  @Get("form") @Permission("products:create") newForm(@Req() req: AuthRequest) {
+    return this.products.records.form(req);
   }
-  @Post("products") @Permission("products:create") create(
+  @Get(":id/form") @Permission("products:read") form(
+    @Req() req: AuthRequest,
+    @Param("id", ParseIntPipe) id: number,
+  ) {
+    return this.products.records.form(req, id);
+  }
+  @Post("onchange") @Permission("products:read") onchange(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+    @Query("id") id?: string,
+  ) {
+    return this.products.records.onchange(req, body, recordId(id));
+  }
+  @Post("lookup") @Permission("products:read") lookup(
     @Req() req: AuthRequest,
     @Body() body: unknown,
   ) {
-    return this.products.create(req, body);
+    return this.products.records.lookup(req, body);
   }
-  @Patch("products/:id") @Permission("products:update") update(
+  @Post() @Permission("products:create") create(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    return this.products.records.create(req, body);
+  }
+  @Patch(":id") @Permission("products:update") update(
     @Req() req: AuthRequest,
     @Param("id", ParseIntPipe) id: number,
     @Body() body: unknown,
   ) {
-    return this.products.update(req, id, body);
+    return this.products.records.update(req, id, body);
   }
 }

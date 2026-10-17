@@ -1,11 +1,17 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { configureHttp } from "./http-config";
 import { ExpressAdapter } from "./http-adapter";
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, new ExpressAdapter());
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule,
+    new ExpressAdapter(),
+  );
+  // Imagens de cadastro (até 3 MB) chegam em base64 nos formulários do Odoo.
+  app.useBodyParser("json", { limit: "5mb" });
   configureHttp(app);
   app.enableShutdownHooks();
   const config = new DocumentBuilder()

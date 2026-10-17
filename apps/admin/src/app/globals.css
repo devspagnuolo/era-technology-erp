@@ -1569,3 +1569,212 @@ label > textarea {
   border-top: 1px solid #edf1ee;
   padding-top: 18px;
 }
+.odoo-form {
+  margin-top: 4px;
+}
+.odoo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 20px;
+  align-items: start;
+}
+.odoo-group {
+  grid-column: 1 / -1;
+  margin: 14px 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6f7f75;
+  border-bottom: 1px solid #edf1ee;
+  padding-bottom: 6px;
+}
+.odoo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+  min-width: 0;
+}
+.odoo-field.wide {
+  grid-column: 1 / -1;
+}
+.odoo-field.boolean {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.odoo-field > label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4e5f58;
+}
+.odoo-field .required {
+  color: #b5482f;
+  margin-left: 3px;
+}
+.odoo-field input:not([type="checkbox"]):not([type="file"]),
+.odoo-field select,
+.odoo-field textarea,
+.odoo-cell input:not([type="checkbox"]),
+.odoo-cell select,
+.odoo-cell textarea {
+  width: 100%;
+  border: 1px solid #dce3df;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+  margin: 0;
+}
+.odoo-cell input:not([type="checkbox"]),
+.odoo-cell select {
+  padding: 6px 8px;
+  min-width: 110px;
+}
+.odoo-field input:disabled,
+.odoo-field select:disabled,
+.odoo-field textarea:disabled,
+.odoo-cell input:disabled,
+.odoo-cell select:disabled {
+  background: #f5f7f6;
+  color: #4e5f58;
+}
+.odoo-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid #e4eae6;
+  margin: 18px 0 8px;
+}
+.odoo-tabs button {
+  border: 0;
+  background: none;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #6f7f75;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.odoo-tabs button.active {
+  color: #1b725a;
+  border-bottom-color: #1b725a;
+  font-weight: 600;
+}
+.odoo-combo {
+  position: relative;
+}
+.odoo-combo-input {
+  position: relative;
+}
+.odoo-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: none;
+  color: #8b988e;
+}
+.odoo-options {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  max-height: 240px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #dce3df;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px #102a2420;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 220px;
+}
+.odoo-options li {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.odoo-options li:hover,
+.odoo-options li[aria-selected="true"] {
+  background: #eef5f1;
+}
+.odoo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.odoo-tags .odoo-combo {
+  flex: 1;
+  min-width: 160px;
+}
+.odoo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eef5f1;
+  color: #1b5c47;
+  border-radius: 999px;
+  padding: 4px 6px 4px 10px;
+  font-size: 12px;
+}
+.odoo-tag button {
+  border: 0;
+  background: none;
+  color: inherit;
+  display: inline-grid;
+}
+.odoo-image {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.odoo-image img,
+.odoo-image-empty {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #e4eae6;
+  display: grid;
+  place-items: center;
+  color: #8b988e;
+  background: #f7faf8;
+}
+.odoo-image > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.odoo-rows table td {
+  vertical-align: top;
+  padding: 6px 8px;
+}
+.odoo-rows > button {
+  margin-top: 8px;
+}
+.odoo-sync {
+  min-height: 18px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #8b988e;
+}
+.odoo-roles {
+  margin-bottom: 8px;
+}
+.form-actions .spacer {
+  flex: 1;
+}
+@media (max-width: 720px) {
+  .odoo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.form-actions { flex-wrap: wrap; }

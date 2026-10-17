@@ -5,7 +5,6 @@ import {
   Get,
   Inject,
   Injectable,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -16,46 +15,12 @@ import {
 import { z } from "zod";
 import { AuthRequest, Permission, parse } from "./auth";
 import { Domain, OdooClient } from "./odoo";
-import { OdooScope, auditAction } from "./odoo-scope";
+import { OdooScope } from "./odoo-scope";
+import { OdooForms } from "./odoo-form";
+import { OdooRecords, recordId } from "./odoo-records";
 
 // Clientes e fornecedores vivem no Odoo (res.partner); a ERA só oferece a tela.
 const MODEL = "res.partner";
-const optionalText = (max: number) => z.string().trim().max(max).nullable();
-const fields = {
-  name: z.string().trim().min(2).max(200),
-  kind: z.enum(["person", "company"]),
-  document: optionalText(32),
-  email: z.string().trim().email().max(200).nullable().or(z.literal("")),
-  phone: optionalText(40),
-  street: optionalText(200),
-  city: optionalText(120),
-  zip: optionalText(16),
-  customer: z.boolean(),
-  supplier: z.boolean(),
-};
-export const contactInput = z
-  .object({
-    ...fields,
-    kind: fields.kind.default("company"),
-    document: fields.document.optional(),
-    email: fields.email.optional(),
-    phone: fields.phone.optional(),
-    street: fields.street.optional(),
-    city: fields.city.optional(),
-    zip: fields.zip.optional(),
-    customer: fields.customer.default(true),
-    supplier: fields.supplier.default(false),
-  })
-  .strict();
-export const contactUpdate = z
-  .object(fields)
-  .partial()
-  .extend({ active: z.boolean().optional() })
-  .strict()
-  .refine(
-    (value) => Object.values(value).some((v) => v !== undefined),
-    "Informe ao menos um campo para alterar",
-  );
 const searchInput = z.object({
   q: z.string().trim().max(100).default(""),
   role: z.enum(["all", "customer", "supplier"]).default("all"),
@@ -107,40 +72,43 @@ export function toEraContact(partner: OdooPartner) {
     active: partner.active,
   };
 }
-export function toOdooContact(
-  input: z.infer<typeof contactUpdate>,
-  ranks: boolean,
-) {
-  const values: Record<string, unknown> = {};
-  if (input.name !== undefined) values.name = input.name;
-  if (input.kind !== undefined) values.is_company = input.kind === "company";
-  const plain = {
-    document: "vat",
-    email: "email",
-    phone: "phone",
-    street: "street",
-    city: "city",
-    zip: "zip",
-  } as const;
-  for (const [key, field] of Object.entries(plain)) {
-    const value = input[key as keyof typeof plain];
-    if (value !== undefined) values[field] = value || false;
-  }
-  // Os papéis de cliente/fornecedor existem com o módulo de Faturamento.
-  if (ranks && input.customer !== undefined)
-    values.customer_rank = input.customer ? 1 : 0;
-  if (ranks && input.supplier !== undefined)
-    values.supplier_rank = input.supplier ? 1 : 0;
-  if (input.active !== undefined) values.active = input.active;
-  return values;
-}
-
 @Injectable()
 export class OdooContacts {
   private odoo: OdooClient;
   private ranks: Promise<boolean> | null = null;
-  constructor(@Inject(OdooScope) private scope: OdooScope) {
+  readonly records: OdooRecords;
+  constructor(
+    @Inject(OdooScope) private scope: OdooScope,
+    @Inject(OdooForms) forms: OdooForms,
+  ) {
     this.odoo = scope.odoo;
+    this.records = new OdooRecords(scope, forms, {
+      model: MODEL,
+      module: "odoo.contacts",
+      notFound: "Contato não encontrado",
+      form: { hidden: ["company_id"] },
+      domain: [["parent_id", "=", false]],
+      prepare: async ({ companyId, values, extra, current }) => {
+        const document = values.vat ?? values.vat_formatted_cnpj;
+        if (typeof document === "string" && document) {
+          const digits = document.replace(/\D/g, "");
+          const previous = String(current?.vat ?? "").replace(/\D/g, "");
+          if (digits !== previous)
+            await this.assertUniqueDocument(
+              companyId,
+              document,
+              current?.id as number,
+            );
+        }
+        // Papéis de cliente/fornecedor (Faturamento) ficam fora da tela do Odoo.
+        if (await this.hasRanks(companyId)) {
+          if (typeof extra.customer === "boolean")
+            values.customer_rank = extra.customer ? 1 : 0;
+          if (typeof extra.supplier === "boolean")
+            values.supplier_rank = extra.supplier ? 1 : 0;
+        }
+      },
+    });
   }
 
   async list(req: AuthRequest, raw: unknown) {
@@ -192,73 +160,29 @@ export class OdooContacts {
     };
   }
 
-  async create(req: AuthRequest, raw: unknown) {
-    const input = parse(contactInput, raw);
+  // Formulário completo + papéis atuais (cliente/fornecedor).
+  async form(req: AuthRequest, id?: number) {
+    const form = await this.records.form(req, id);
     const companyId = await this.scope.company(req);
-    if (input.document)
-      await this.assertUniqueDocument(companyId, input.document);
-    const values = {
-      ...toOdooContact(input, await this.hasRanks(companyId)),
-      company_id: companyId,
-    };
-    const [id] = await this.odoo.execute<number[]>(companyId, MODEL, "create", [
-      [values],
-    ]);
-    const after = await this.read(companyId, id);
-    await this.scope.audit(
-      req,
-      "odoo.contacts",
-      MODEL,
-      "create",
-      id,
-      null,
-      after,
-    );
-    return after;
-  }
-
-  async update(req: AuthRequest, id: number, raw: unknown) {
-    const input = parse(contactUpdate, raw);
-    const companyId = await this.scope.company(req);
-    const before = await this.read(companyId, id);
-    if (input.document && input.document !== before.document)
-      await this.assertUniqueDocument(companyId, input.document, id);
-    await this.odoo.execute(companyId, MODEL, "write", [
-      [id],
-      toOdooContact(input, await this.hasRanks(companyId)),
-    ]);
-    const after = await this.read(companyId, id);
-    await this.scope.audit(
-      req,
-      "odoo.contacts",
-      MODEL,
-      auditAction(input.active, before.active),
-      id,
-      before,
-      after,
-    );
-    return after;
-  }
-
-  private async read(companyId: number, id: number) {
     const ranks = await this.hasRanks(companyId);
-    const [partner] = await this.odoo.execute<OdooPartner[]>(
-      companyId,
-      MODEL,
-      "search_read",
-      [
-        [
-          ["id", "=", id],
-          ["company_id", "=", companyId],
-        ],
-      ],
-      {
-        fields: [...READ_FIELDS, ...(ranks ? RANKS : [])],
-        context: { active_test: false },
-      },
-    );
-    if (!partner) throw new NotFoundException("Contato não encontrado");
-    return toEraContact(partner);
+    let roles: { customer: boolean; supplier: boolean } | null = null;
+    if (ranks) {
+      roles = { customer: !id, supplier: false };
+      if (id) {
+        const [row] = await this.odoo.execute<OdooPartner[]>(
+          companyId,
+          MODEL,
+          "search_read",
+          [[["id", "=", id], ["company_id", "=", companyId]]],
+          { fields: RANKS, context: { active_test: false } },
+        );
+        roles = {
+          customer: (row?.customer_rank ?? 0) > 0,
+          supplier: (row?.supplier_rank ?? 0) > 0,
+        };
+      }
+    }
+    return { ...form, roles };
   }
 
   private async assertUniqueDocument(
@@ -266,9 +190,11 @@ export class OdooContacts {
     document: string,
     id?: number,
   ) {
+    const digits = document.replace(/\D/g, "");
+    const candidates = [...new Set([document, digits].filter(Boolean))];
     const domain: Domain = [
       ["company_id", "=", companyId],
-      ["vat", "=", document],
+      ["vat", "in", candidates],
     ];
     if (id) domain.push(["id", "!=", id]);
     const count = await this.odoo.execute<number>(
@@ -308,17 +234,39 @@ export class OdooContactsController {
   ) {
     return this.contacts.list(req, query);
   }
+  @Get("form") @Permission("contacts:create") newForm(@Req() req: AuthRequest) {
+    return this.contacts.form(req);
+  }
+  @Get(":id/form") @Permission("contacts:read") form(
+    @Req() req: AuthRequest,
+    @Param("id", ParseIntPipe) id: number,
+  ) {
+    return this.contacts.form(req, id);
+  }
+  @Post("onchange") @Permission("contacts:read") onchange(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+    @Query("id") id?: string,
+  ) {
+    return this.contacts.records.onchange(req, body, recordId(id));
+  }
+  @Post("lookup") @Permission("contacts:read") lookup(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    return this.contacts.records.lookup(req, body);
+  }
   @Post() @Permission("contacts:create") create(
     @Req() req: AuthRequest,
     @Body() body: unknown,
   ) {
-    return this.contacts.create(req, body);
+    return this.contacts.records.create(req, body);
   }
   @Patch(":id") @Permission("contacts:update") update(
     @Req() req: AuthRequest,
     @Param("id", ParseIntPipe) id: number,
     @Body() body: unknown,
   ) {
-    return this.contacts.update(req, id, body);
+    return this.contacts.records.update(req, id, body);
   }
 }

@@ -13,7 +13,7 @@ export function configureHttp(
   app.use(
     rateLimit({
       windowMs: 60000,
-      limit: 60,
+      limit: 300,
       standardHeaders: "draft-8",
       legacyHeaders: false,
       skip: (request) => request.path === "/v1/health",
