@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { EraLogo } from "./era-logo";
 import {
   ArrowUpRight,
   Boxes,
@@ -241,16 +240,15 @@ export function EraDashboard({
   views: EraView[];
   onViewChange: (view: EraView) => void;
 }) {
-  const greeting = new Date().getHours() < 12 ? "Bom dia" : new Date().getHours() < 18 ? "Boa tarde" : "Boa noite";
   const shortcuts = ERA_MODULES.filter((item) => item.featured);
 
   return (
     <div className="era-dashboard">
       <section className="era-welcome">
         <div className="era-welcome-copy">
-          <span className="era-eyebrow">SEU ESPAÇO DE GESTÃO</span>
-          <h1>{greeting}, {name.split(" ")[0]}.</h1>
-          <p>Uma entrada mais simples para as rotinas do ERA ERP.</p>
+          <span className="era-eyebrow">PAINEL DE CONTROLE</span>
+          <h1>Visão geral</h1>
+          <p>Bem-vindo, {name.split(" ")[0]}. Acesse os processos e cadastros da sua empresa.</p>
           <div className="era-welcome-actions">
             <OdooLink className="era-primary-link" href={odooUrl}>
               Abrir o Odoo <ArrowUpRight size={16} />
@@ -260,17 +258,13 @@ export function EraDashboard({
             </button>
           </div>
         </div>
-        <EraLogo className="era-welcome-mark" />
-        <div className="era-welcome-footnote">
-          <span className="era-status-dot" />
-          Odoo Community como núcleo · interface ERA em construção
-        </div>
+        <div className="era-welcome-footnote">ERP ERA · Odoo Community como núcleo operacional</div>
       </section>
 
       <div className="era-section-heading">
         <div>
           <span className="era-eyebrow">ACESSO RÁPIDO</span>
-          <h2>Por onde você quer começar?</h2>
+          <h2>Rotinas principais</h2>
         </div>
         <button className="era-text-link" onClick={() => onViewChange("modules")}>
           Ver todos <ArrowUpRight size={15} />
@@ -295,10 +289,10 @@ export function EraDashboard({
 
       <div className="era-section-heading era-lower-heading">
         <div>
-          <span className="era-eyebrow">COMECE COM CALMA</span>
-          <h2>Preparação do ambiente</h2>
+          <span className="era-eyebrow">CONFIGURAÇÃO</span>
+          <h2>Administração inicial</h2>
         </div>
-        <span className="era-build-badge">AMBIENTE DE CONSTRUÇÃO</span>
+        <span className="era-build-badge">AMBIENTE DE TESTES</span>
       </div>
       <section className="era-setup-grid">
         <button className="era-setup-card" onClick={() => onViewChange("modules")}>

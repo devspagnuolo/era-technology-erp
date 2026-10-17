@@ -2188,3 +2188,167 @@ button.era-shortcut {
     padding: 17px 13px 30px;
   }
 }
+
+/* ERA visual system: navy foundation, official blue actions, compact ERP density. */
+:root {
+  --era-navy: #102448;
+  --era-blue: #075ccf;
+  --era-blue-dark: #084ca8;
+  --era-cyan: #0aaaf0;
+}
+input:focus {
+  border-color: var(--era-blue);
+  box-shadow: 0 0 0 3px #dcecff;
+}
+.era-logo-image {
+  transform: translateY(-30%);
+}
+.era-shell .era-brand {
+  min-height: 0;
+  padding: 0 4px 14px;
+}
+.era-shell .sidebar-logo {
+  width: 198px;
+  height: 98px;
+  border-radius: 10px;
+}
+.login-story {
+  background: var(--era-navy);
+}
+.login-story .eyebrow {
+  margin-top: 78px;
+  color: #88cdf7;
+}
+.login-story h1 {
+  font-size: clamp(36px, 4vw, 54px);
+  margin-bottom: 18px;
+}
+.login-story > p:last-of-type {
+  max-width: 440px;
+  color: #cfdef1;
+}
+.login-logo {
+  width: min(270px, 100%);
+  height: 132px;
+  margin-bottom: 0;
+  border-radius: 12px;
+}
+.login-form {
+  background: #f8fafc;
+}
+.login-form h2,
+.login-form label {
+  color: #152b4e;
+}
+.login-form p,
+.login-form small {
+  color: #60738b;
+}
+.login-form .icon-tile {
+  color: var(--era-blue);
+  background: #e9f3ff;
+}
+.era-shell .workspace-label span {
+  color: #e6f5ff;
+  background: #14539a;
+}
+.era-welcome {
+  min-height: 0;
+  padding: 25px 30px 48px;
+  border-radius: 12px;
+  background: linear-gradient(112deg, #102448 0%, #173e79 75%, #075baf 100%);
+  box-shadow: 0 8px 20px #10244814;
+}
+.era-welcome-copy {
+  width: 100%;
+}
+.era-welcome h1 {
+  font-size: clamp(27px, 2.3vw, 35px);
+  letter-spacing: -.8px;
+}
+.era-welcome-copy > p {
+  color: #e0ebf8;
+}
+.era-welcome-actions {
+  margin-top: 18px;
+}
+.era-welcome-footnote {
+  left: 30px;
+  bottom: 15px;
+  color: #c3d8ef;
+  font-size: 11px;
+}
+.era-primary-link {
+  background: #fff;
+  color: var(--era-blue-dark);
+  border-radius: 7px;
+}
+.era-module-title .era-primary-link {
+  background: var(--era-blue);
+  color: #fff;
+}
+.era-module-title .era-primary-link:hover {
+  background: var(--era-blue-dark);
+}
+.era-shortcut,
+.era-module-card,
+.era-setup-card,
+.era-shell .table-card {
+  border-radius: 10px;
+  box-shadow: none;
+}
+.era-shortcut:hover,
+.era-module-card:hover,
+.era-setup-card:hover {
+  transform: none;
+  border-color: #92bce9;
+  box-shadow: 0 4px 12px #1024480c;
+}
+.era-shell .page-heading {
+  align-items: flex-start;
+}
+.era-shell .page-heading > div {
+  min-width: 0;
+  flex: 1;
+}
+.era-shell .page-heading > button {
+  flex: 0 0 auto;
+  min-width: max-content;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.era-shell .page-heading .eyebrow {
+  color: #37699f;
+}
+.era-shell .page-heading p:last-child {
+  color: #526b89;
+}
+.era-shell .empty h3 {
+  color: #17365e;
+}
+.era-shell .empty p,
+.era-shell .data-note {
+  color: #617791;
+}
+@media (max-width: 640px) {
+  .era-shell .sidebar-logo {
+    width: 178px;
+    height: 88px;
+  }
+  .login-logo {
+    width: 230px;
+    height: 113px;
+  }
+  .login-story .eyebrow {
+    margin-top: 38px;
+  }
+  .era-welcome {
+    padding: 23px 20px 45px;
+  }
+  .era-welcome-footnote {
+    left: 20px;
+  }
+  .era-shell .page-heading {
+    flex-wrap: wrap;
+  }
+}

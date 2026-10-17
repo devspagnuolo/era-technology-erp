@@ -108,16 +108,13 @@ function Login() {
         <EraLogo className="login-logo" />
         <p className="eyebrow">ERP ERA · ODOO COMO MOTOR</p>
         <h1>
-          Seu negócio.
-          <br />
-          Uma visão completa.
+          ERA ERP
         </h1>
         <p>
-          Uma experiência mais simples para acessar os módulos operacionais do
-          Odoo.
+          Gestão empresarial com os dados operacionais no Odoo.
         </p>
         <div className="login-foot">
-          <Layers3 size={20} /> Uma base para cada próximo passo.
+          <Layers3 size={20} /> Comercial, operações e administração em um só lugar.
         </div>
       </section>
       <section className="login-form">
@@ -125,8 +122,8 @@ function Login() {
           <div className="icon-tile">
             <Building2 />
           </div>
-          <h2>Bem-vindo ao ERP</h2>
-          <p>Acesse o ambiente da sua empresa.</p>
+          <h2>Acesso ao ERA ERP</h2>
+          <p>Informe suas credenciais para entrar no sistema.</p>
           <label>
             Empresa
             <input
@@ -298,7 +295,7 @@ function Catalog() {
     <div className="shell era-shell">
       <aside className={mobileNavOpen ? "era-sidebar is-open" : "era-sidebar"}>
         <div className="era-brand"><EraLogo className="sidebar-logo" /></div>
-        <div className="workspace-label">ESPAÇO DE TRABALHO <span>ERP</span></div>
+        <div className="workspace-label">MENU PRINCIPAL <span>ERP</span></div>
         <label className="era-nav-search">
           <Search size={16} />
           <input aria-label="Buscar no menu" placeholder="Buscar menu…" value={navQuery} onChange={(event) => setNavQuery(event.target.value)} />
