@@ -17,12 +17,14 @@ import {
   Layers3,
   House,
   ContactRound,
+  ShoppingCart,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
 import { CorePanel } from "../components/core-panel";
 import { OdooProducts } from "../components/odoo-products";
 import { OdooContacts } from "../components/odoo-contacts";
+import { OdooSales } from "../components/odoo-sales";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -185,6 +187,7 @@ function Catalog() {
     modules: "Módulos ERA",
     products: "Produtos",
     contacts: "Clientes e fornecedores",
+    sales: "Vendas",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
@@ -226,6 +229,14 @@ function Catalog() {
             onClick={() => setView("contacts")}
           >
             <ContactRound size={19} /> Clientes e fornecedores
+          </button>
+        )}
+        {user.data?.permissions.includes("sales:read") && (
+          <button
+            className={view === "sales" ? "nav active" : "nav"}
+            onClick={() => setView("sales")}
+          >
+            <ShoppingCart size={19} /> Vendas
           </button>
         )}
         {user.data?.permissions.includes("audit:read") && (
@@ -300,6 +311,11 @@ function Catalog() {
               view={view}
               permissions={user.data?.permissions ?? []}
               currentUserId={user.data?.id ?? ""}
+            />
+          ) : view === "sales" ? (
+            <OdooSales
+              permissions={user.data?.permissions ?? []}
+              odooUrl={odooEntryUrl}
             />
           ) : view === "contacts" ? (
             <OdooContacts

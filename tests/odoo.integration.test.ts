@@ -2,10 +2,15 @@ import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { NotFoundException, ConflictException } from "@nestjs/common";
+import {
+  NotFoundException,
+  ConflictException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { OdooClient, parseCompanies } from "../services/api/src/odoo";
 import { OdooProducts } from "../services/api/src/odoo-products";
 import { OdooContacts } from "../services/api/src/odoo-contacts";
+import { OdooSales } from "../services/api/src/odoo-sales";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooStatusController } from "../services/api/src/odoo-status";
 import { Database } from "../services/api/src/database";
@@ -163,5 +168,78 @@ test(
       ["create", "update", "deactivate"],
     );
     assert.equal(audits[0].recordId, "res.partner:" + created.id);
+  },
+);
+
+test(
+  "vendas: orçamento é criado, alterado, confirmado e cancelado no Odoo",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const audits: Array<{ action: string; recordId: string }> = [];
+    const scope = scopeFor(fakeDb(audits), companies);
+    const sales = new OdooSales(scope);
+    const tag = randomUUID().slice(0, 8);
+    const customer = await new OdooContacts(scope).create(as(a), {
+      name: "Cliente " + tag,
+    });
+    const product = await new OdooProducts(scope).create(as(a), {
+      name: "Produto " + tag,
+      sku: "VND-" + tag,
+      salePrice: "40.00",
+    });
+    const options = await sales.options(as(a), { q: tag });
+    assert.deepEqual(
+      options.customers.map((c) => c.id),
+      [customer.id],
+    );
+    assert.equal(options.products.length, 1);
+    const variant = options.products[0];
+    assert.equal(variant.price, "40.00");
+    assert.equal((await sales.options(as(b), { q: tag })).products.length, 0);
+    const created = await sales.create(as(a), {
+      customerId: customer.id,
+      note: "Entrega pela manhã",
+      lines: [{ productId: variant.id, quantity: 2 }],
+    });
+    assert.equal(created.stage, "quotation");
+    assert.equal(created.lines.length, 1);
+    assert.equal(created.lines[0].price, "40.00");
+    assert.equal(created.lines[0].subtotal, "80.00");
+    assert.equal(created.note, "Entrega pela manhã");
+    await assert.rejects(() => sales.get(as(b), created.id), NotFoundException);
+    await assert.rejects(
+      () =>
+        sales.create(as(b), {
+          customerId: customer.id,
+          lines: [{ productId: variant.id, quantity: 1 }],
+        }),
+      NotFoundException,
+    );
+    const updated = await sales.update(as(a), created.id, {
+      lines: [{ productId: variant.id, quantity: 3, price: "30.00" }],
+    });
+    assert.equal(updated.lines.length, 1);
+    assert.equal(updated.untaxed, "90.00");
+    const listed = await sales.list(as(a), { q: created.number });
+    assert.equal(listed.total, 1);
+    assert.equal((await sales.list(as(b), { q: created.number })).total, 0);
+    const confirmed = await sales.confirm(as(a), created.id);
+    assert.equal(confirmed.stage, "order");
+    await assert.rejects(
+      () => sales.update(as(a), created.id, { note: "tarde" }),
+      UnprocessableEntityException,
+    );
+    const cancelled = await sales.cancel(as(a), created.id);
+    assert.equal(cancelled.stage, "cancelled");
+    const reopened = await sales.reopen(as(a), created.id);
+    assert.equal(reopened.stage, "quotation");
+    assert.deepEqual(
+      audits
+        .filter((e) => e.recordId.startsWith("sale.order:"))
+        .map((e) => e.action),
+      ["create", "update", "confirm", "cancel", "reopen"],
+    );
   },
 );

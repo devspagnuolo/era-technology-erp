@@ -14,6 +14,10 @@ export const permissions = [
   "contacts:read",
   "contacts:create",
   "contacts:update",
+  "sales:read",
+  "sales:create",
+  "sales:update",
+  "sales:confirm",
   "customers:read",
   "customers:create",
   "customers:update",
@@ -27,6 +31,12 @@ const contactsFull: PermissionKey[] = [
   "contacts:read",
   "contacts:create",
   "contacts:update",
+];
+const salesFull: PermissionKey[] = [
+  "sales:read",
+  "sales:create",
+  "sales:update",
+  "sales:confirm",
 ];
 export const rolePresets: Record<
   string,
@@ -43,6 +53,7 @@ export const rolePresets: Record<
       "products:create",
       "products:update",
       ...contactsFull,
+      ...salesFull,
       "audit:read",
     ],
   },
@@ -54,20 +65,21 @@ export const rolePresets: Record<
       "products:create",
       "products:update",
       ...contactsFull,
+      ...salesFull,
     ],
   },
   OPERATOR: {
     label: "Operador",
-    permissions: ["products:read", "contacts:read"],
+    permissions: ["products:read", "contacts:read", "sales:read"],
   },
   FINANCIAL: {
     label: "Financeiro",
-    permissions: ["core:read", "contacts:read"],
+    permissions: ["core:read", "contacts:read", "sales:read"],
   },
   FISCAL: { label: "Fiscal", permissions: ["core:read", "contacts:read"] },
   COMMERCIAL: {
     label: "Comercial",
-    permissions: ["products:read", ...contactsFull],
+    permissions: ["products:read", ...contactsFull, ...salesFull],
   },
   INVENTORY: { label: "Estoque", permissions: ["products:read"] },
   PURCHASES: {
