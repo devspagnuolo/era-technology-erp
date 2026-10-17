@@ -39,5 +39,9 @@ if user:
 else:
     user = Users.create({**values, "login": login})
 user.write({"password": password})
+# O Odoo exige e-mail do autor nas mensagens que as ações postam no histórico
+# (aprovar folga, enviar despesa...). Sem servidor de e-mail nada é enviado.
+if not user.email:
+    user.email = os.environ.get("ERA_INTEGRATION_EMAIL") or company.email or login + "@era.local"
 env.cr.commit()
 print("era.provision: usuário", login, "pronto; empresa", company.id)
