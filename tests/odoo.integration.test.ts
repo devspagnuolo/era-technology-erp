@@ -12,6 +12,7 @@ import { OdooClient, parseCompanies } from "../services/api/src/odoo";
 import { OdooProducts } from "../services/api/src/odoo-products";
 import { OdooContacts } from "../services/api/src/odoo-contacts";
 import { OdooSales } from "../services/api/src/odoo-sales";
+import { OdooPurchases } from "../services/api/src/odoo-purchases";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooStatusController } from "../services/api/src/odoo-status";
@@ -66,7 +67,8 @@ const services = (scope: OdooScope) => {
   return {
     products: new OdooProducts(scope, forms),
     contacts: new OdooContacts(scope, forms),
-    sales: new OdooSales(scope, forms),
+    sales: new OdooSales(scope, forms).orders,
+    purchases: new OdooPurchases(scope, forms).orders,
   };
 };
 
@@ -285,6 +287,82 @@ test(
         .filter((e) => e.recordId.startsWith("sale.order:"))
         .map((e) => e.action),
       ["create", "update", "confirm", "cancel", "reopen"],
+    );
+  },
+);
+
+test(
+  "compras: cotação é criada com preço de custo, confirmada e cancelada no Odoo",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a, b] = Object.keys(companies);
+    const audits: Array<{ action: string; recordId: string }> = [];
+    const { contacts, products, purchases } = services(
+      scopeFor(fakeDb(audits), companies),
+    );
+    const tag = randomUUID().slice(0, 8);
+    const vendor = await contacts.records.create(as(a), {
+      values: { name: "Fornecedor " + tag },
+      extra: { customer: false, supplier: true },
+    });
+    await products.records.create(as(a), {
+      values: {
+        name: "Insumo " + tag,
+        default_code: "CMP-" + tag,
+        standard_price: 15,
+      },
+    });
+    const blank = await purchases.form(as(a));
+    for (const name of [
+      "partner_id",
+      "partner_ref",
+      "order_line",
+      "date_planned",
+    ])
+      assert.ok(blank.schema.fields[name], name);
+    assert.ok(
+      blank.schema.fields.order_line.sub!.columns.includes("product_qty"),
+    );
+    const [variant] = (await purchases.records.lookup(as(a), {
+      field: "order_line",
+      q: tag,
+      values: { ...blank.values, partner_id: vendor.id },
+      line: { field: "product_id", values: {} },
+    })) as Ref[];
+    assert.ok(variant);
+    const { line } = (await purchases.records.onchange(as(a), {
+      values: { ...blank.values, partner_id: vendor.id },
+      field: "order_line",
+      line: { values: { product_id: variant.id }, field: "product_id" },
+    })) as { line: Record<string, unknown> };
+    assert.equal(line.price_unit, 15);
+    const created = await purchases.records.create(as(a), {
+      values: {
+        partner_id: vendor.id,
+        partner_ref: "COT-" + tag,
+        order_line: [{ product_id: variant.id, product_qty: 4 }],
+      },
+    });
+    const id = created.id as number;
+    const summary = (await purchases.form(as(a), id)).summary!;
+    assert.equal(summary.stage, "quotation");
+    assert.equal(summary.untaxed, "60.00");
+    assert.equal(summary.reference, "COT-" + tag);
+    assert.equal((await purchases.list(as(a), { q: "COT-" + tag })).total, 1);
+    assert.equal((await purchases.list(as(b), { q: "COT-" + tag })).total, 0);
+    await assert.rejects(() => purchases.form(as(b), id), NotFoundException);
+    const confirmed = await purchases.confirm(as(a), id);
+    assert.equal(confirmed.stage, "order");
+    const cancelled = await purchases.cancel(as(a), id);
+    assert.equal(cancelled.stage, "cancelled");
+    const reopened = await purchases.reopen(as(a), id);
+    assert.equal(reopened.state, "draft");
+    assert.deepEqual(
+      audits
+        .filter((e) => e.recordId.startsWith("purchase.order:"))
+        .map((e) => e.action),
+      ["create", "confirm", "cancel", "reopen"],
     );
   },
 );

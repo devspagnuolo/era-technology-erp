@@ -18,13 +18,14 @@ import {
   House,
   ContactRound,
   ShoppingCart,
+  Truck,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
 import { CorePanel } from "../components/core-panel";
 import { OdooProducts } from "../components/odoo-products";
 import { OdooContacts } from "../components/odoo-contacts";
-import { OdooSales } from "../components/odoo-sales";
+import { OdooOrders, PURCHASES, SALES } from "../components/odoo-orders";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -87,7 +88,8 @@ function Login() {
           Uma visão completa.
         </h1>
         <p>
-          Uma experiência mais simples para acessar os módulos operacionais do Odoo.
+          Uma experiência mais simples para acessar os módulos operacionais do
+          Odoo.
         </p>
         <div className="login-foot">
           <Layers3 size={20} /> Uma base para cada próximo passo.
@@ -188,6 +190,7 @@ function Catalog() {
     products: "Produtos",
     contacts: "Clientes e fornecedores",
     sales: "Vendas",
+    purchases: "Compras",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
@@ -239,6 +242,14 @@ function Catalog() {
             <ShoppingCart size={19} /> Vendas
           </button>
         )}
+        {user.data?.permissions.includes("purchases:read") && (
+          <button
+            className={view === "purchases" ? "nav active" : "nav"}
+            onClick={() => setView("purchases")}
+          >
+            <Truck size={19} /> Compras
+          </button>
+        )}
         {user.data?.permissions.includes("audit:read") && (
           <>
             <p className="nav-label">ADMINISTRAÇÃO</p>
@@ -285,7 +296,9 @@ function Catalog() {
       </aside>
       <div className="main">
         <header className="era-topbar">
-          <div className="era-breadcrumb">ERA ERP <span>/</span> {viewLabels[view]}</div>
+          <div className="era-breadcrumb">
+            ERA ERP <span>/</span> {viewLabels[view]}
+          </div>
           <div className="company">
             <Building2 size={16} />
             {user.data?.tenant.name || "Empresa de demonstração"}
@@ -312,8 +325,10 @@ function Catalog() {
               permissions={user.data?.permissions ?? []}
               currentUserId={user.data?.id ?? ""}
             />
-          ) : view === "sales" ? (
-            <OdooSales
+          ) : view === "sales" || view === "purchases" ? (
+            <OdooOrders
+              key={view}
+              kind={view === "sales" ? SALES : PURCHASES}
               permissions={user.data?.permissions ?? []}
               odooUrl={odooEntryUrl}
             />
@@ -333,28 +348,45 @@ function Catalog() {
                 <div>
                   <p className="eyebrow">CONTROLE E RASTREABILIDADE</p>
                   <h1>Auditoria</h1>
-                  <p>Acompanhe as últimas 100 operações registradas na empresa.</p>
+                  <p>
+                    Acompanhe as últimas 100 operações registradas na empresa.
+                  </p>
                 </div>
               </div>
               <section className="table-card table-scroll">
-                  {audits.isPending ? (
-                    <div className="empty">Carregando registros…</div>
-                  ) : audits.error ? (
-                    <p className="error" role="alert">{audits.error.message}</p>
-                  ) : (
-                    <table>
-                      <thead><tr><th>Data</th><th>Módulo</th><th>Ação</th><th>Usuário</th></tr></thead>
-                      <tbody>
-                        {audits.data?.map((a) => (
-                          <tr key={a.id}>
-                            <td>{new Date(a.createdAt).toLocaleString("pt-BR")}</td>
-                            <td>{a.module}</td><td>{a.action}</td><td className="mono">{a.actorId}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {audits.data?.length === 0 && <div className="empty">Nenhuma operação registrada.</div>}
+                {audits.isPending ? (
+                  <div className="empty">Carregando registros…</div>
+                ) : audits.error ? (
+                  <p className="error" role="alert">
+                    {audits.error.message}
+                  </p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Módulo</th>
+                        <th>Ação</th>
+                        <th>Usuário</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {audits.data?.map((a) => (
+                        <tr key={a.id}>
+                          <td>
+                            {new Date(a.createdAt).toLocaleString("pt-BR")}
+                          </td>
+                          <td>{a.module}</td>
+                          <td>{a.action}</td>
+                          <td className="mono">{a.actorId}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {audits.data?.length === 0 && (
+                  <div className="empty">Nenhuma operação registrada.</div>
+                )}
               </section>
             </>
           )}
@@ -363,4 +395,3 @@ function Catalog() {
     </div>
   );
 }
-
