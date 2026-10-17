@@ -5,18 +5,21 @@ import { OdooScope } from "./odoo-scope";
 import { OdooStatusController } from "./odoo-status";
 import { OdooProducts, OdooProductsController } from "./odoo-products";
 import { OdooContacts, OdooContactsController } from "./odoo-contacts";
+import { OdooSales, OdooSalesController } from "./odoo-sales";
 @Module({
   imports: [DatabaseModule],
   controllers: [
     OdooStatusController,
     OdooProductsController,
     OdooContactsController,
+    OdooSalesController,
   ],
   providers: [
     { provide: OdooClient, useFactory: () => new OdooClient(readOdooConfig()) },
     OdooScope,
     OdooProducts,
     OdooContacts,
+    OdooSales,
   ],
 })
 export class OdooModule {}

@@ -23,6 +23,13 @@ import {
   contactUpdate,
   toOdooContact,
 } from "../services/api/src/odoo-contacts";
+import {
+  plainNote,
+  saleInput,
+  saleUpdate,
+  stageOf,
+  toOdooSale,
+} from "../services/api/src/odoo-sales";
 test("vínculo empresa ERA → empresa Odoo vem do ambiente", () => {
   assert.deepEqual(parseCompanies("era-demo:1, loja-2 : 4,"), {
     "era-demo": 1,
@@ -143,4 +150,57 @@ test("contatos: mapeia papéis só quando o Odoo tem Faturamento", () => {
     false,
   );
   assert.equal(contactInput.parse({ name: "X Ltda" }).customer, true);
+});
+test("vendas: itens substituem as linhas e o Odoo calcula o preço padrão", () => {
+  const input = saleInput.parse({
+    customerId: 15,
+    note: "Entregar <manhã>\nPortão 2",
+    lines: [
+      { productId: 7, quantity: 2 },
+      { productId: 8, quantity: 1, price: "30.00", discount: 10 },
+    ],
+  });
+  assert.deepEqual(toOdooSale(input), {
+    partner_id: 15,
+    note: "<p>Entregar &lt;manhã&gt;</p><p>Portão 2</p>",
+    order_line: [
+      [5, 0, 0],
+      [0, 0, { product_id: 7, product_uom_qty: 2 }],
+      [
+        0,
+        0,
+        { product_id: 8, product_uom_qty: 1, price_unit: 30, discount: 10 },
+      ],
+    ],
+  });
+  assert.equal(
+    plainNote("<p>Entregar &lt;manhã&gt;</p><p>Portão 2</p>"),
+    "Entregar <manhã>\nPortão 2",
+  );
+  assert.deepEqual(toOdooSale(saleUpdate.parse({ validUntil: null })), {
+    validity_date: false,
+  });
+  assert.equal(
+    saleInput.safeParse({ customerId: 1, lines: [] }).success,
+    false,
+  );
+  assert.equal(
+    saleInput.safeParse({
+      customerId: 1,
+      company_id: 2,
+      lines: [{ productId: 1, quantity: 1 }],
+    }).success,
+    false,
+  );
+  assert.equal(
+    saleInput.safeParse({
+      customerId: 1,
+      lines: [{ productId: 1, quantity: 0 }],
+    }).success,
+    false,
+  );
+  assert.deepEqual(
+    (["draft", "sent", "sale", "cancel"] as const).map(stageOf),
+    ["quotation", "quotation", "order", "cancelled"],
+  );
 });
