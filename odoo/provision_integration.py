@@ -19,6 +19,9 @@ for xmlid, area in [
     ("maintenance.group_equipment_manager", "Manutenção"),
     ("hr_holidays.group_hr_holidays_manager", "Folga"),
     ("hr_expense.group_hr_expense_manager", "Despesas"),
+    # A ERA é a única tela: instalar aplicativos e alterar configurações
+    # também passam por ela.
+    ("base.group_system", "Configurações"),
 ]:
     group = env.ref(xmlid, raise_if_not_found=False)
     if group:
