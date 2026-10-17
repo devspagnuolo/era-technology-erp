@@ -375,3 +375,42 @@ test("folga: situação do Odoo vira etapa da ERA", () => {
   assert.equal(leaveStage("refuse"), "refused");
   assert.equal(leaveStage("cancel"), "refused");
 });
+
+test("campo obrigatório da tela enviado vazio é recusado", () => {
+  const def = (name: string, extra: object = {}) => ({
+    name,
+    label: name,
+    type: "many2one",
+    required: false,
+    readonly: false,
+    section: "Geral",
+    ...extra,
+  });
+  const fields = {
+    product_id: def("product_id", { required: true }),
+    sheet_id: def("sheet_id", { required: true, hidden: true }),
+    partner_id: def("partner_id", { requiredIf: "kind == 'b'" }),
+    kind: def("kind", {
+      type: "selection",
+      selection: [
+        ["a", "A"],
+        ["b", "B"],
+      ],
+    }),
+  };
+  const save = (input: Record<string, unknown>) =>
+    toOdooValues(fields, input, {}, new Map());
+  assert.throws(
+    () => save({ product_id: null }),
+    /Preencha o campo product_id/,
+  );
+  assert.throws(
+    () => save({ kind: "b", partner_id: false }),
+    /Preencha o campo partner_id/,
+  );
+  assert.deepEqual(save({ kind: "a", partner_id: false }), {
+    kind: "a",
+    partner_id: false,
+  });
+  assert.deepEqual(save({ sheet_id: false }), { sheet_id: false });
+});

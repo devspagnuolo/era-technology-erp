@@ -1,7 +1,19 @@
-import { Inject, Injectable } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { OdooScope } from "./odoo-scope";
 import { OdooForms } from "./odoo-form";
-import { AppConfig, OdooApp, appController, call, ref, text } from "./odoo-app";
+import {
+  AppConfig,
+  OdooApp,
+  appController,
+  call,
+  finished,
+  ref,
+  text,
+} from "./odoo-app";
 
 // Despesas (hr.expense) e relatórios de despesas (hr.expense.sheet) com os
 // formulários do Odoo. A despesa é lançada e enviada em um relatório; o
@@ -67,6 +79,8 @@ export const SHEET_STAGES = {
   refused: ["cancel"],
 } as const;
 
+const DUPLICATE = "hr.expense.approve.duplicate";
+
 export const EXPENSE_REPORTS: AppConfig = {
   model: "hr.expense.sheet",
   module: "odoo.expense-reports",
@@ -114,9 +128,23 @@ export const EXPENSE_REPORTS: AppConfig = {
       allowed: (s) => s.state === "draft",
       run: call("action_submit_sheet"),
     },
+    // Com despesas parecidas (mesmo funcionário, valor e data), o Odoo pede
+    // para confirmar a possível duplicidade antes de aprovar.
     approve: {
       allowed: (s) => s.state === "submit",
-      run: call("action_approve_expense_sheets"),
+      run: async ({ odoo, companyId, model, id }) => {
+        const result = await odoo.execute(
+          companyId,
+          model,
+          "action_approve_expense_sheets",
+          [[id]],
+        );
+        if ((result as { res_model?: string })?.res_model === DUPLICATE)
+          throw new UnprocessableEntityException(
+            "O Odoo encontrou despesas parecidas neste relatório (possível duplicidade); revise e aprove no Odoo",
+          );
+        finished(result);
+      },
     },
     post: {
       allowed: (s) => s.state === "approve",
