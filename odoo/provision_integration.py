@@ -11,6 +11,8 @@ for xmlid, area in [
     ("stock.group_stock_manager", "Inventário"),
     ("sales_team.group_sale_manager", "Vendas"),
     ("purchase.group_purchase_manager", "Compras"),
+    ("account.group_account_manager", "Faturamento"),
+    ("l10n_br_fiscal.group_manager", "Fiscal"),
 ]:
     group = env.ref(xmlid, raise_if_not_found=False)
     if group:
