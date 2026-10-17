@@ -20,6 +20,7 @@ import {
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
 import { CorePanel } from "../components/core-panel";
+import { OdooProducts } from "../components/odoo-products";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -180,7 +181,7 @@ function Catalog() {
   const viewLabels: Record<EraView, string> = {
     home: "Visão geral",
     modules: "Módulos ERA",
-    products: "Produtos e estoque no Odoo",
+    products: "Produtos",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
@@ -290,18 +291,10 @@ function Catalog() {
               currentUserId={user.data?.id ?? ""}
             />
           ) : view === "products" ? (
-            <section className="era-odoo-handoff">
-              <div className="era-handoff-icon"><Package size={24} /></div>
-              <span className="era-eyebrow">CADASTRO OPERACIONAL</span>
-              <h1>Produtos e estoque</h1>
-              <p>
-                O Odoo é a fonte oficial dos produtos, preços e movimentações de estoque. A ERA encaminha você para o ambiente operacional, sem manter um catálogo duplicado.
-              </p>
-              <a className="era-primary-link" href={odooEntryUrl} target="_blank" rel="noreferrer">
-                Abrir Odoo <ArrowUpRight size={16} />
-              </a>
-              <small>Faça login no Odoo se solicitado e escolha Inventário no menu de aplicativos.</small>
-            </section>
+            <OdooProducts
+              permissions={user.data?.permissions ?? []}
+              odooUrl={odooEntryUrl}
+            />
           ) : (
             <>
               <div className="page-heading">

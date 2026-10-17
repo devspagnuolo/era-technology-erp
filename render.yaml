@@ -25,6 +25,17 @@ services:
         generateValue: true
       - key: SEED_PASSWORD
         generateValue: true
+      # Integração Odoo: valores definidos no painel Render, nunca no Git.
+      - key: ODOO_URL
+        value: https://era-odoo-poc.onrender.com
+      - key: ODOO_DB
+        sync: false
+      - key: ODOO_LOGIN
+        sync: false
+      - key: ODOO_API_KEY
+        sync: false
+      - key: ODOO_TENANT_COMPANIES
+        sync: false
   - type: web
     name: era-admin
     runtime: node

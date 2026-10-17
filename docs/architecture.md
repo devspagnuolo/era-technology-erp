@@ -11,11 +11,11 @@ A ERA é a camada de experiência: identidade visual própria, painel inicial, n
 ```text
 Pessoa → interface ERA (Next.js) ── menu/atalhos ──→ Odoo Community
              │                                      └→ banco próprio do Odoo
-             └→ API ERA (NestJS) → PostgreSQL ERA
-                  autenticação/autorizações auxiliares
+             └→ API ERA (NestJS) ── JSON-RPC ──→ Odoo (módulos integrados)
+                  └→ PostgreSQL ERA: autenticação, permissões, auditoria
 ```
 
-Não existe integração servidor-a-servidor com Odoo, sincronização de cadastros, deep-link garantido por módulo nem SSO. Não compartilhar a senha de usuário Odoo com a API ERA. Não conectar diretamente ao PostgreSQL do Odoo nem abrir sua allowlist de rede como substituto de uma API autorizada.
+A API ERA conversa com o Odoo servidor-a-servidor (JSON-RPC, usuário técnico com chave de API) para os módulos já integrados, começando por Produtos; detalhes em [odoo-integration.md](odoo-integration.md). Não há cópia de cadastros no banco ERA, SSO nem deep-link garantido para os módulos ainda não integrados. Não compartilhar a senha de usuário Odoo com a API ERA. Não conectar diretamente ao PostgreSQL do Odoo nem abrir sua allowlist de rede como substituto de uma API autorizada.
 
 A API e o banco ERA são um protótipo independente de administração/autenticação e ainda contêm endpoints de catálogo de demonstração. Esse catálogo não é o cadastro oficial de produtos e não deve ser usado para operar o ERP. Não ampliar módulos duplicados de CRM, vendas ou estoque na API ERA até que a arquitetura de integração ou migração seja deliberadamente definida.
 

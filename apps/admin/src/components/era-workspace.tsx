@@ -257,8 +257,8 @@ export function EraDashboard({
         <button className="era-setup-card" onClick={() => onViewChange("products")}>
           <span className="era-setup-number">02</span>
           <strong>Produtos e estoque</strong>
-          <span>Consulte e atualize os cadastros operacionais diretamente no Odoo.</span>
-          <span className="era-setup-action">Acessar pelo Odoo <ArrowUpRight size={14} /></span>
+          <span>Consulte e cadastre produtos na ERA; tudo é gravado no Odoo.</span>
+          <span className="era-setup-action">Abrir produtos <ArrowUpRight size={14} /></span>
         </button>
         <div className="era-setup-note">
           <CircleHelp size={19} />

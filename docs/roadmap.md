@@ -9,10 +9,10 @@ Odoo Community é o motor e a fonte oficial dos registros operacionais. A interf
 - Painel ERA Next.js no Render, com identidade oficial ERA e layout responsivo de login.
 - Visão geral e central de 19 atalhos relacionados ao menu existente do Odoo.
 - Os cartões abrem o seletor do Odoo; não escolhem automaticamente o aplicativo e não sincronizam registros.
-- Área Produtos e estoque encaminha ao Odoo para operar no Inventário; o catálogo de demonstração da API não é fonte oficial.
 - API privada NestJS e PostgreSQL separados para o protótipo de autenticação/administração ERA.
 - Login ERA e login Odoo permanecem separados.
 - Deploy do painel confirmado ativo em 17/10/2026; detalhes e limites em [render-deployment.md](render-deployment.md).
+- Produtos: tela ERA que consulta, cadastra, edita e arquiva diretamente no Odoo (`product.template`), com isolamento por empresa e auditoria ERA. Requer configurar o usuário técnico no Odoo; ver [odoo-integration.md](odoo-integration.md).
 
 ## Próximos passos
 
