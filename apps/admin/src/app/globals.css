@@ -603,3 +603,661 @@ select {
 select:focus-visible {
   outline: 2px solid #1b725a;
 }
+
+/* ERA module workspace */
+.era-shell {
+  background: #f4f7fb;
+  color: #152744;
+}
+.era-shell .era-sidebar {
+  width: 254px;
+  background: #102448;
+  border-right: 0;
+  color: #eef4ff;
+  padding: 25px 16px 18px;
+}
+.era-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 10px 24px;
+  border-bottom: 1px solid #ffffff19;
+}
+.era-brand-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #13c5ee, #2865e9 67%, #173c9a);
+  color: white;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  box-shadow: 0 5px 14px #07172b80;
+}
+.era-brand-name {
+  font-size: 19px;
+  line-height: 1;
+  letter-spacing: 1px;
+  font-weight: 800;
+}
+.era-brand-name small {
+  display: block;
+  margin-top: 5px;
+  color: #9db4d7;
+  font-size: 8px;
+  letter-spacing: 2.1px;
+  font-weight: 600;
+}
+.era-shell .workspace-label {
+  color: #9db2d4;
+  margin: 20px 10px 10px;
+}
+.era-shell .workspace-label span {
+  background: #1d3966;
+  color: #d8eaff;
+}
+.era-shell .nav-label {
+  color: #839abd;
+  margin: 20px 10px 8px;
+  font-weight: 700;
+}
+.era-shell .nav {
+  color: #c4d2e7;
+  font-size: 13px;
+  padding: 11px 10px;
+  gap: 10px;
+}
+.era-shell .nav:hover {
+  background: #ffffff0d;
+  color: white;
+}
+.era-shell .nav.active {
+  background: linear-gradient(90deg, #21467d, #1c3a68);
+  color: #fff;
+  box-shadow: inset 3px 0 #25c2e7;
+}
+.era-shell .nav.active svg {
+  color: #50d2f0;
+}
+.era-nav-count {
+  margin-left: auto;
+  min-width: 23px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #ffffff13;
+  color: #bcd0ed;
+  font-size: 10px;
+}
+.era-shell .sidebar-bottom {
+  border-top-color: #ffffff1c;
+}
+.era-shell .sidebar-bottom strong {
+  color: #f3f7ff;
+  font-size: 12px;
+}
+.era-shell .sidebar-bottom small {
+  color: #9db2d4;
+}
+.era-shell .avatar {
+  background: #23416e;
+  color: white;
+}
+.era-shell .sidebar-bottom button {
+  color: #a8bfdf;
+}
+.era-shell .main {
+  margin-left: 254px;
+}
+.era-shell .era-topbar {
+  height: 68px;
+  padding: 0 36px;
+  box-shadow: 0 2px 10px #132c4b08;
+  color: #75859d;
+}
+.era-breadcrumb {
+  font-weight: 600;
+  color: #314562;
+}
+.era-breadcrumb span {
+  color: #b3c0d1;
+}
+.era-shell .company {
+  border: 1px solid #e4eaf2;
+  border-radius: 9px;
+  padding: 9px 12px;
+  color: #4e6584;
+  background: #fff;
+}
+.era-shell .content.era-content {
+  max-width: 1540px;
+  padding: 34px 36px 48px;
+}
+.era-dashboard,
+.era-module-center {
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.era-welcome {
+  position: relative;
+  overflow: hidden;
+  min-height: 224px;
+  display: flex;
+  align-items: center;
+  border-radius: 18px;
+  padding: 30px 34px 48px;
+  color: white;
+  background:
+    radial-gradient(circle at 87% 22%, #29c5ea4d 0, transparent 25%),
+    linear-gradient(112deg, #122c55 0%, #173c79 61%, #175786 100%);
+  box-shadow: 0 14px 28px #16376620;
+}
+.era-welcome-copy {
+  position: relative;
+  z-index: 1;
+}
+.era-eyebrow {
+  color: #788ba6;
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+}
+.era-welcome .era-eyebrow {
+  color: #9cceec;
+}
+.era-welcome h1 {
+  margin-top: 10px;
+  font-size: clamp(29px, 3vw, 39px);
+  font-weight: 650;
+  letter-spacing: -1.4px;
+}
+.era-welcome-copy > p {
+  margin-top: 10px;
+  color: #d0def1;
+  font-size: 14px;
+}
+.era-welcome-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 23px;
+}
+.era-primary-link,
+.era-quiet-button,
+.era-text-link,
+.era-setup-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+.era-primary-link {
+  min-height: 40px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 9px;
+  background: #fff;
+  color: #173c79;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.era-primary-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px #061a3840;
+}
+.era-quiet-button {
+  min-height: 40px;
+  padding: 0 11px;
+  border: 0;
+  color: #e4efff;
+  background: transparent;
+}
+.era-quiet-button:hover,
+.era-text-link:hover {
+  text-decoration: underline;
+}
+.era-welcome-mark {
+  position: absolute;
+  right: 9%;
+  top: 50%;
+  transform: translateY(-56%);
+  color: #ffffff0c;
+  text-align: center;
+  font-size: clamp(110px, 17vw, 210px);
+  line-height: .8;
+  letter-spacing: -16px;
+  font-weight: 900;
+  user-select: none;
+}
+.era-welcome-mark small {
+  display: block;
+  margin-top: 18px;
+  font-size: 10px;
+  letter-spacing: 8px;
+}
+.era-welcome-footnote {
+  position: absolute;
+  left: 34px;
+  bottom: 19px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: #b7cce6;
+}
+.era-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3dd6b3;
+  box-shadow: 0 0 0 3px #3dd6b322;
+}
+.era-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px;
+  margin: 33px 2px 15px;
+}
+.era-section-heading h2 {
+  margin-top: 6px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -.35px;
+  color: #203653;
+}
+.era-text-link {
+  border: 0;
+  padding: 7px 0;
+  color: #2565bb;
+  background: transparent;
+}
+.era-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 13px;
+}
+.era-shortcut,
+.era-module-card {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e2e9f2;
+  border-radius: 13px;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  text-decoration: none;
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+.era-shortcut:hover,
+.era-module-card:hover,
+.era-setup-card:hover {
+  border-color: #a7c7eb;
+  transform: translateY(-2px);
+  box-shadow: 0 9px 20px #1c47740e;
+}
+.era-module-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #246bc3;
+  background: #edf5ff;
+}
+.era-shortcut-text,
+.era-module-copy {
+  flex: 1;
+  min-width: 0;
+}
+.era-shortcut-text strong,
+.era-module-copy strong {
+  display: block;
+  color: #203653;
+  font-size: 13px;
+  font-weight: 700;
+}
+.era-shortcut-text small,
+.era-module-copy small {
+  display: block;
+  margin-top: 5px;
+  color: #7c8da5;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.era-card-arrow {
+  flex: 0 0 auto;
+  color: #91a1b6;
+}
+.era-lower-heading {
+  margin-top: 34px;
+}
+.era-build-badge {
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #e8f2ff;
+  color: #3069aa;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .8px;
+}
+.era-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+.era-setup-card {
+  min-height: 168px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px;
+  border: 1px solid #e2e9f2;
+  border-radius: 13px;
+  background: white;
+  color: #203653;
+  text-align: left;
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+.era-setup-number {
+  color: #4f86cb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.era-setup-card strong {
+  margin-top: 10px;
+  font-size: 14px;
+}
+.era-setup-card > span:nth-of-type(2) {
+  margin-top: 7px;
+  color: #7c8da5;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.era-setup-action {
+  margin-top: auto;
+  padding-top: 12px;
+  color: #2565bb;
+  font-size: 10px;
+}
+.era-setup-note {
+  min-height: 168px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 20px;
+  border: 1px solid #dbe8f5;
+  border-radius: 13px;
+  color: #2860a3;
+  background: linear-gradient(135deg, #edf6ff, #f9fbff);
+}
+.era-setup-note div strong,
+.era-setup-note div span {
+  display: block;
+}
+.era-setup-note div strong {
+  color: #274c77;
+  font-size: 12px;
+}
+.era-setup-note div span {
+  margin-top: 8px;
+  color: #6e829b;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.era-integration-note {
+  margin: 16px 2px 0;
+  color: #8190a4;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.era-module-title {
+  margin-top: 1px;
+  margin-bottom: 22px;
+  align-items: center;
+}
+.era-module-title h1 {
+  margin-top: 7px;
+  font-size: 31px;
+}
+.era-module-title p {
+  margin-top: 7px;
+  color: #7c8da5;
+  font-size: 12px;
+}
+.era-module-search {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 14px;
+  min-height: 46px;
+  border: 1px solid #e1e8f0;
+  border-radius: 11px;
+  color: #7890aa;
+  background: white;
+}
+.era-module-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 11px 0;
+  background: transparent;
+  color: #203653;
+  font-size: 12px;
+}
+.era-module-search input:focus {
+  box-shadow: none;
+}
+.era-module-search span {
+  color: #8797aa;
+  font-size: 10px;
+}
+.era-module-group {
+  margin-top: 25px;
+}
+.era-module-group h2 {
+  margin: 0 0 11px 2px;
+  color: #5f728c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+}
+.era-module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+}
+.era-module-card {
+  padding: 13px;
+  border-radius: 11px;
+}
+.era-module-card .era-module-icon {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.era-module-disclaimer,
+.era-no-modules {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  color: #6f829b;
+  background: #eaf1f8;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1120px) {
+  .era-shortcuts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .era-module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 900px) {
+  .era-shell .era-sidebar {
+    width: 220px;
+    padding-inline: 13px;
+  }
+  .era-shell .main {
+    margin-left: 220px;
+  }
+  .era-shell .era-topbar {
+    padding-inline: 20px;
+  }
+  .era-shell .content.era-content {
+    padding: 26px 20px 38px;
+  }
+  .era-setup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .era-shell .era-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100%;
+    min-height: 62px;
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 8px 10px;
+    border-bottom: 1px solid #ffffff1c;
+  }
+  .era-shell .era-brand {
+    flex: 0 0 auto;
+    gap: 7px;
+    padding: 0 10px 0 2px;
+    border: 0;
+  }
+  .era-brand-mark {
+    width: 31px;
+    height: 31px;
+    font-size: 19px;
+  }
+  .era-brand-name {
+    font-size: 15px;
+  }
+  .era-brand-name small {
+    font-size: 6px;
+    letter-spacing: 1.5px;
+  }
+  .era-shell .workspace-label,
+  .era-shell .nav-label,
+  .era-shell .sidebar-bottom {
+    display: none;
+  }
+  .era-shell .nav {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 9px;
+    gap: 7px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .era-shell .nav svg {
+    width: 16px;
+  }
+  .era-nav-count {
+    display: none;
+  }
+  .era-shell .main {
+    margin-left: 0;
+  }
+  .era-shell .era-topbar {
+    height: 54px;
+    padding-inline: 14px;
+    font-size: 10px;
+  }
+  .era-shell .company {
+    padding: 7px 8px;
+    font-size: 10px;
+  }
+  .era-shell .content.era-content {
+    padding: 18px 13px 32px;
+  }
+  .era-welcome {
+    min-height: 242px;
+    padding: 25px 20px 52px;
+    border-radius: 15px;
+  }
+  .era-welcome h1 {
+    font-size: 30px;
+  }
+  .era-welcome-copy > p {
+    max-width: 255px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .era-welcome-mark {
+    right: -3%;
+    top: 45%;
+    font-size: 108px;
+    letter-spacing: -11px;
+  }
+  .era-welcome-mark small {
+    font-size: 7px;
+    letter-spacing: 4px;
+  }
+  .era-welcome-footnote {
+    left: 20px;
+    right: 12px;
+    bottom: 17px;
+    font-size: 9px;
+  }
+  .era-welcome-actions {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .era-primary-link,
+  .era-quiet-button {
+    min-height: 37px;
+    font-size: 11px;
+  }
+  .era-section-heading {
+    align-items: flex-start;
+    margin: 26px 1px 13px;
+  }
+  .era-section-heading h2 {
+    font-size: 16px;
+  }
+  .era-shortcuts,
+  .era-module-grid,
+  .era-setup-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .era-shortcut {
+    padding: 13px;
+  }
+  .era-setup-card,
+  .era-setup-note {
+    min-height: 148px;
+  }
+  .era-build-badge {
+    font-size: 7px;
+    padding: 6px 7px;
+  }
+  .era-module-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .era-module-title h1 {
+    font-size: 27px;
+  }
+}

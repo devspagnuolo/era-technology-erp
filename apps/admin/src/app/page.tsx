@@ -22,10 +22,23 @@ import {
   ChevronRight,
   Layers3,
   X,
+  House,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
 import { CorePanel } from "../components/core-panel";
+import {
+  EraDashboard,
+  EraModuleCenter,
+  type EraView,
+} from "../components/era-workspace";
+
+const odooBaseUrl = (
+  process.env.NEXT_PUBLIC_ODOO_URL || "https://era-odoo-poc.onrender.com"
+).replace(/\/+$/, "");
+const odooEntryUrl = odooBaseUrl.endsWith("/odoo")
+  ? odooBaseUrl
+  : `${odooBaseUrl}/odoo`;
 type Product = {
   id: string;
   sku: string;
@@ -163,9 +176,7 @@ function Catalog() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
-  const [view, setView] = useState<
-    "products" | "audit" | "users" | "branches" | "profiles"
-  >("products");
+  const [view, setView] = useState<EraView>("home");
   const user = useQuery({
     queryKey: ["me"],
     queryFn: () => api<User>("auth/me"),
@@ -201,21 +212,45 @@ function Catalog() {
       setSession(null);
     },
   });
+  const viewLabels: Record<EraView, string> = {
+    home: "Visão geral",
+    modules: "Módulos ERA",
+    products: "Catálogo ERA",
+    audit: "Auditoria",
+    users: "Usuários",
+    branches: "Filiais",
+    profiles: "Perfis",
+  };
   return (
-    <div className="shell">
-      <aside>
-        <div className="brand">
-          era<span>technology</span>
+    <div className="shell era-shell">
+      <aside className="era-sidebar">
+        <div className="era-brand">
+          <span className="era-brand-mark">E</span>
+          <span className="era-brand-name">ERA<small>TECHNOLOGY</small></span>
         </div>
         <div className="workspace-label">
           WORKSPACE <span>ERP</span>
         </div>
-        <p className="nav-label">OPERAÇÃO</p>
+        <p className="nav-label">ESPAÇO ERA</p>
+        <button
+          className={view === "home" ? "nav active" : "nav"}
+          onClick={() => setView("home")}
+        >
+          <House size={19} /> Visão geral
+        </button>
+        <button
+          className={view === "modules" ? "nav active" : "nav"}
+          onClick={() => setView("modules")}
+        >
+          <Layers3 size={19} /> Módulos Odoo
+          <span className="era-nav-count">19</span>
+        </button>
+        <p className="nav-label">CADASTROS ERA</p>
         <button
           className={view === "products" ? "nav active" : "nav"}
           onClick={() => setView("products")}
         >
-          <Package size={19} /> Produtos <span className="nav-dot" />
+          <Package size={19} /> Catálogo de produtos
         </button>
         {user.data?.permissions.includes("audit:read") && (
           <>
@@ -262,23 +297,28 @@ function Catalog() {
         </div>
       </aside>
       <div className="main">
-        <header>
-          <div>
-            Workspace <span>/</span>{" "}
-            {view === "products" ? "Cadastros" : "Administração"}
-          </div>
+        <header className="era-topbar">
+          <div className="era-breadcrumb">ERA ERP <span>/</span> {viewLabels[view]}</div>
           <div className="company">
             <Building2 size={16} />
-            {user.data?.tenant.name || "Empresa"}
+            {user.data?.tenant.name || "Empresa de demonstração"}
           </div>
         </header>
-        <main className="content">
+        <main className="content era-content">
           {(user.error || logout.error) && (
             <p role="alert" className="error">
               {user.error?.message || logout.error?.message}
             </p>
           )}
-          {view === "users" || view === "branches" || view === "profiles" ? (
+          {view === "home" ? (
+            <EraDashboard
+              name={user.data?.name || "equipe ERA"}
+              odooUrl={odooEntryUrl}
+              onViewChange={setView}
+            />
+          ) : view === "modules" ? (
+            <EraModuleCenter odooUrl={odooEntryUrl} />
+          ) : view === "users" || view === "branches" || view === "profiles" ? (
             <CorePanel
               key={view}
               view={view}
@@ -291,13 +331,13 @@ function Catalog() {
                 <div>
                   <p className="eyebrow">
                     {view === "products"
-                      ? "CATÁLOGO DA EMPRESA"
+                      ? "CATÁLOGO DE DEMONSTRAÇÃO ERA"
                       : "CONTROLE E RASTREABILIDADE"}
                   </p>
-                  <h1>{view === "products" ? "Produtos" : "Auditoria"}</h1>
+                  <h1>{view === "products" ? "Catálogo ERA" : "Auditoria"}</h1>
                   <p>
                     {view === "products"
-                      ? "Organize os produtos que movimentam o seu negócio."
+                      ? "Área de demonstração da interface ERA; ainda não sincronizada com o catálogo do Odoo."
                       : "Acompanhe as últimas 100 operações registradas na empresa."}
                   </p>
                 </div>
@@ -319,14 +359,14 @@ function Catalog() {
                       <strong>{products.data?.total ?? "—"}</strong>
                     </div>
                     <p>
-                      Seu catálogo, sempre conectado.
+                      Catálogo isolado da demonstração ERA.
                       <br />
-                      <span>Consulte e cadastre produtos em um só lugar.</span>
+                      <span>Não altera o cadastro de produtos no Odoo.</span>
                     </p>
                   </div>
                   <section className="table-card">
                     <div className="table-toolbar">
-                      <h2>Catálogo de produtos</h2>
+                      <h2>Catálogo de demonstração</h2>
                       <label className="search">
                         <Search size={17} />
                         <input
@@ -376,71 +416,38 @@ function Catalog() {
                                 <tr key={p.id}>
                                   <td>
                                     <div className="product-name">
-                                      <span>
-                                        <Package size={18} />
-                                      </span>
+                                      <span><Package size={18} /></span>
                                       <strong>{p.name}</strong>
                                     </div>
                                   </td>
                                   <td className="mono">{p.sku}</td>
                                   <td>{p.unit}</td>
                                   <td>{money(p.salePrice)}</td>
-                                  <td>
-                                    <span className="badge">
-                                      {p.active ? "Ativo" : "Inativo"}
-                                    </span>
-                                  </td>
+                                  <td><span className="badge">{p.active ? "Ativo" : "Inativo"}</span></td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
                         <footer className="table-footer">
-                          <span>
-                            {products.data.total} produtos encontrados
-                          </span>
+                          <span>{products.data.total} produtos encontrados</span>
                           <div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              aria-label="Página anterior"
-                              disabled={page === 1}
-                              onClick={() => setPage(page - 1)}
-                            >
-                              <ChevronLeft size={16} />
-                            </Button>
+                            <Button variant="outline" size="sm" aria-label="Página anterior" disabled={page === 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></Button>
                             <span>Página {page}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              aria-label="Próxima página"
-                              disabled={page * 20 >= products.data.total}
-                              onClick={() => setPage(page + 1)}
-                            >
-                              <ChevronRight size={16} />
-                            </Button>
+                            <Button variant="outline" size="sm" aria-label="Próxima página" disabled={page * 20 >= products.data.total} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></Button>
                           </div>
                         </footer>
                       </>
                     ) : (
                       <div className="empty">
                         <Package size={32} />
-                        <h3>
-                          {q
-                            ? "Nenhum resultado encontrado"
-                            : "Seu catálogo começa aqui"}
-                        </h3>
-                        <p>
-                          {q
-                            ? "Tente buscar por outro nome ou SKU."
-                            : "Cadastre o primeiro produto da sua empresa."}
-                        </p>
+                        <h3>{q ? "Nenhum resultado encontrado" : "Seu catálogo começa aqui"}</h3>
+                        <p>{q ? "Tente buscar por outro nome ou SKU." : "Cadastre um produto fictício para testar a tela."}</p>
                       </div>
                     )}
                   </section>
                   <p className="data-note">
-                    <ShieldCheck size={14} /> Dados exclusivos da empresa
-                    selecionada. Cadastros geram registro de auditoria.
+                    <ShieldCheck size={14} /> Base de demonstração ERA. O cadastro não é enviado ao Odoo.
                   </p>
                 </>
               ) : (
@@ -448,36 +455,21 @@ function Catalog() {
                   {audits.isPending ? (
                     <div className="empty">Carregando registros…</div>
                   ) : audits.error ? (
-                    <p className="error" role="alert">
-                      {audits.error.message}
-                    </p>
+                    <p className="error" role="alert">{audits.error.message}</p>
                   ) : (
                     <table>
-                      <thead>
-                        <tr>
-                          <th>Data</th>
-                          <th>Módulo</th>
-                          <th>Ação</th>
-                          <th>Usuário</th>
-                        </tr>
-                      </thead>
+                      <thead><tr><th>Data</th><th>Módulo</th><th>Ação</th><th>Usuário</th></tr></thead>
                       <tbody>
                         {audits.data?.map((a) => (
                           <tr key={a.id}>
-                            <td>
-                              {new Date(a.createdAt).toLocaleString("pt-BR")}
-                            </td>
-                            <td>{a.module}</td>
-                            <td>{a.action}</td>
-                            <td className="mono">{a.actorId}</td>
+                            <td>{new Date(a.createdAt).toLocaleString("pt-BR")}</td>
+                            <td>{a.module}</td><td>{a.action}</td><td className="mono">{a.actorId}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   )}
-                  {audits.data?.length === 0 && (
-                    <div className="empty">Nenhuma operação registrada.</div>
-                  )}
+                  {audits.data?.length === 0 && <div className="empty">Nenhuma operação registrada.</div>}
                 </section>
               )}
             </>
