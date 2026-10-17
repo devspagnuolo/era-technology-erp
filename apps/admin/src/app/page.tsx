@@ -16,6 +16,7 @@ import {
   LogOut,
   Layers3,
   House,
+  LayoutDashboard,
   ContactRound,
   ShoppingCart,
   Truck,
@@ -25,6 +26,18 @@ import {
   Factory,
   FolderKanban,
   IdCard,
+  CalendarDays,
+  CheckSquare,
+  ChartNoAxesCombined,
+  FileText,
+  MessageSquare,
+  Puzzle,
+  Settings2,
+  Wrench,
+  ChevronDown,
+  Search,
+  Menu,
+  X,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
@@ -169,6 +182,10 @@ function Catalog() {
   const cache = useQueryClient();
   const setSession = useSession((s) => s.setSession);
   const [view, setView] = useState<EraView>("home");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, commercial: true, operations: true, people: false, productivity: false, administration: false });
+  const [navQuery, setNavQuery] = useState("");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [selectedOdooModule, setSelectedOdooModule] = useState<string | null>(null);
   const user = useQuery({
     queryKey: ["me"],
     queryFn: () => api<User>("auth/me"),
@@ -231,152 +248,137 @@ function Catalog() {
   const views = (Object.keys(viewPermissions) as EraView[]).filter((v) =>
     permissions.includes(viewPermissions[v]!),
   );
-  const moreModules: Array<{
-    view: EraView;
+  const navigation: Array<{
+    key: string;
     label: string;
     icon: React.ReactNode;
+    items: Array<{ label: string; icon: React.ReactNode; view?: EraView; permission?: string }>;
   }> = [
-    { view: "crm", label: "CRM", icon: <Handshake size={19} /> },
-    { view: "manufacturing", label: "Fabricação", icon: <Factory size={19} /> },
-    { view: "projects", label: "Projetos", icon: <FolderKanban size={19} /> },
-    { view: "employees", label: "Funcionários", icon: <IdCard size={19} /> },
+    { key: "overview", label: "Visão geral", icon: <House size={17} />, items: [
+      { label: "Painel inicial", icon: <LayoutDashboard size={16} />, view: "home" },
+      { label: "Central de módulos", icon: <Layers3 size={16} />, view: "modules" },
+    ] },
+    { key: "commercial", label: "Comercial e financeiro", icon: <Handshake size={17} />, items: [
+      { label: "CRM", icon: <Handshake size={16} />, view: "crm", permission: "crm:read" },
+      { label: "Contatos", icon: <ContactRound size={16} />, view: "contacts", permission: "contacts:read" },
+      { label: "Vendas", icon: <ShoppingCart size={16} />, view: "sales", permission: "sales:read" },
+      { label: "Faturamento", icon: <ReceiptText size={16} />, view: "invoices", permission: "invoices:read" },
+      { label: "Fiscal", icon: <FileText size={16} /> },
+    ] },
+    { key: "operations", label: "Operações", icon: <Warehouse size={17} />, items: [
+      { label: "Produtos", icon: <Package size={16} />, view: "products", permission: "products:read" },
+      { label: "Estoque", icon: <Warehouse size={16} />, view: "inventory", permission: "inventory:read" },
+      { label: "Compras", icon: <Truck size={16} />, view: "purchases", permission: "purchases:read" },
+      { label: "Fabricação", icon: <Factory size={16} />, view: "manufacturing", permission: "manufacturing:read" },
+      { label: "Manutenção", icon: <Wrench size={16} /> },
+      { label: "Projetos", icon: <FolderKanban size={16} />, view: "projects", permission: "projects:read" },
+    ] },
+    { key: "people", label: "Pessoas", icon: <IdCard size={17} />, items: [
+      { label: "Funcionários", icon: <IdCard size={16} />, view: "employees", permission: "employees:read" },
+      { label: "Folgas e ausências", icon: <CalendarDays size={16} /> },
+      { label: "Despesas", icon: <ReceiptText size={16} /> },
+    ] },
+    { key: "productivity", label: "Produtividade", icon: <ChartNoAxesCombined size={17} />, items: [
+      { label: "Mensagens", icon: <MessageSquare size={16} /> },
+      { label: "Calendário", icon: <CalendarDays size={16} /> },
+      { label: "Tarefas", icon: <CheckSquare size={16} /> },
+      { label: "Painéis", icon: <ChartNoAxesCombined size={16} /> },
+    ] },
+    { key: "administration", label: "Administração", icon: <Settings2 size={17} />, items: [
+      { label: "Usuários", icon: <ContactRound size={16} />, view: "users", permission: "users:read" },
+      { label: "Filiais", icon: <Building2 size={16} />, view: "branches", permission: "core:read" },
+      { label: "Perfis e permissões", icon: <ShieldCheck size={16} />, view: "profiles", permission: "profiles:read" },
+      { label: "Auditoria", icon: <ShieldCheck size={16} />, view: "audit", permission: "audit:read" },
+      { label: "Aplicativos Odoo", icon: <Puzzle size={16} />, view: "modules" },
+      { label: "Definições Odoo", icon: <Settings2 size={16} /> },
+    ] },
   ];
+  const normalizedNavQuery = navQuery.trim().toLocaleLowerCase("pt-BR");
   return (
     <div className="shell era-shell">
-      <aside className="era-sidebar">
-        <div className="era-brand">
-          <EraLogo className="sidebar-logo" />
-        </div>
-        <div className="workspace-label">
-          WORKSPACE <span>ERP</span>
-        </div>
-        <p className="nav-label">ESPAÇO ERA</p>
-        <button
-          className={view === "home" ? "nav active" : "nav"}
-          onClick={() => setView("home")}
-        >
-          <House size={19} /> Visão geral
-        </button>
-        <button
-          className={view === "modules" ? "nav active" : "nav"}
-          onClick={() => setView("modules")}
-        >
-          <Layers3 size={19} /> Módulos Odoo
-          <span className="era-nav-count">19</span>
-        </button>
-        <p className="nav-label">OPERAÇÃO NO ODOO</p>
-        <button
-          className={view === "products" ? "nav active" : "nav"}
-          onClick={() => setView("products")}
-        >
-          <Package size={19} /> Produtos e estoque
-        </button>
-        {user.data?.permissions.includes("contacts:read") && (
-          <button
-            className={view === "contacts" ? "nav active" : "nav"}
-            onClick={() => setView("contacts")}
-          >
-            <ContactRound size={19} /> Clientes e fornecedores
-          </button>
-        )}
-        {user.data?.permissions.includes("sales:read") && (
-          <button
-            className={view === "sales" ? "nav active" : "nav"}
-            onClick={() => setView("sales")}
-          >
-            <ShoppingCart size={19} /> Vendas
-          </button>
-        )}
-        {user.data?.permissions.includes("purchases:read") && (
-          <button
-            className={view === "purchases" ? "nav active" : "nav"}
-            onClick={() => setView("purchases")}
-          >
-            <Truck size={19} /> Compras
-          </button>
-        )}
-        {user.data?.permissions.includes("inventory:read") && (
-          <button
-            className={view === "inventory" ? "nav active" : "nav"}
-            onClick={() => setView("inventory")}
-          >
-            <Warehouse size={19} /> Estoque
-          </button>
-        )}
-        {user.data?.permissions.includes("invoices:read") && (
-          <button
-            className={view === "invoices" ? "nav active" : "nav"}
-            onClick={() => setView("invoices")}
-          >
-            <ReceiptText size={19} /> Faturas
-          </button>
-        )}
-        {moreModules
-          .filter((m) => views.includes(m.view))
-          .map((m) => (
-            <button
-              key={m.view}
-              className={view === m.view ? "nav active" : "nav"}
-              onClick={() => setView(m.view)}
-            >
-              {m.icon} {m.label}
-            </button>
-          ))}
-        {user.data?.permissions.includes("audit:read") && (
-          <>
-            <p className="nav-label">ADMINISTRAÇÃO</p>
-            <button
-              className={view === "audit" ? "nav active" : "nav"}
-              onClick={() => setView("audit")}
-            >
-              <ShieldCheck size={19} /> Auditoria
-            </button>
-          </>
-        )}
-        {(
-          [
-            { key: "branches", label: "Filiais", permission: "core:read" },
-            { key: "users", label: "Usuários", permission: "users:read" },
-            { key: "profiles", label: "Perfis", permission: "profiles:read" },
-          ] as const
-        )
-          .filter((item) => user.data?.permissions.includes(item.permission))
-          .map((item) => (
-            <button
-              key={item.key}
-              className={view === item.key ? "nav active" : "nav"}
-              onClick={() => setView(item.key)}
-            >
-              <Building2 size={19} />
-              {item.label}
-            </button>
-          ))}
+      <aside className={mobileNavOpen ? "era-sidebar is-open" : "era-sidebar"}>
+        <div className="era-brand"><EraLogo className="sidebar-logo" /></div>
+        <div className="workspace-label">ESPAÇO DE TRABALHO <span>ERP</span></div>
+        <label className="era-nav-search">
+          <Search size={16} />
+          <input aria-label="Buscar no menu" placeholder="Buscar menu…" value={navQuery} onChange={(event) => setNavQuery(event.target.value)} />
+          {navQuery && <button type="button" aria-label="Limpar busca" onClick={() => setNavQuery("")}><X size={14} /></button>}
+        </label>
+        <nav className="era-navigation" aria-label="Navegação principal">
+          {navigation.map((group) => {
+            const items = group.items.filter((item) =>
+              (!item.permission || permissions.includes(item.permission)) &&
+              (!normalizedNavQuery || item.label.toLocaleLowerCase("pt-BR").includes(normalizedNavQuery)),
+            );
+            if (!items.length) return null;
+            const expanded = normalizedNavQuery ? true : !!expandedGroups[group.key];
+            const active = items.some((item) => item.view === view || item.label === selectedOdooModule);
+            return (
+              <section className={active ? "era-nav-group has-active" : "era-nav-group"} key={group.key}>
+                <button
+                  type="button"
+                  className="era-nav-group-trigger"
+                  aria-expanded={expanded}
+                  onClick={() => setExpandedGroups((current) => ({ ...current, [group.key]: !current[group.key] }))}
+                >
+                  <span className="era-nav-group-icon">{group.icon}</span>
+                  <span>{group.label}</span>
+                  <ChevronDown size={15} className={expanded ? "era-chevron expanded" : "era-chevron"} />
+                </button>
+                {expanded && <div className="era-nav-submenu">
+                  {items.map((item) => {
+                    const isActive = item.view === view || item.label === selectedOdooModule;
+                    return item.view ? (
+                      <button
+                        type="button"
+                        key={item.label}
+                        className={isActive ? "era-nav-subitem active" : "era-nav-subitem"}
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={() => { setSelectedOdooModule(null); setView(item.view!); setMobileNavOpen(false); }}
+                      >
+                        <span className="era-nav-subicon">{item.icon}</span>{item.label}
+                      </button>
+                    ) : (
+                      <a
+                        key={item.label}
+                        className={isActive ? "era-nav-subitem active" : "era-nav-subitem"}
+                        href={odooEntryUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => { setSelectedOdooModule(item.label); setMobileNavOpen(false); }}
+                      >
+                        <span className="era-nav-subicon">{item.icon}</span>{item.label}<ArrowUpRight size={13} className="era-external-icon" />
+                      </a>
+                    );
+                  })}
+                </div>}
+              </section>
+            );
+          })}
+        </nav>
         <div className="sidebar-bottom">
           <div className="avatar">{user.data?.name?.slice(0, 1) || "E"}</div>
-          <div>
+          <div className="sidebar-user-copy">
             <strong>{user.data?.name || "Carregando…"}</strong>
             <small>{user.data?.tenant.name}</small>
           </div>
-          <button
-            aria-label="Sair"
-            onClick={() => logout.mutate()}
-            disabled={logout.isPending}
-          >
-            <LogOut size={17} />
-          </button>
+          <button aria-label="Sair" onClick={() => logout.mutate()} disabled={logout.isPending}><LogOut size={17} /></button>
         </div>
       </aside>
       <div className="main">
         <header className="era-topbar">
+          <button type="button" className="era-mobile-menu" aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"} onClick={() => setMobileNavOpen((open) => !open)}>
+            {mobileNavOpen ? <X size={19} /> : <Menu size={19} />}
+          </button>
           <div className="era-breadcrumb">
-            ERA ERP <span>/</span> {viewLabels[view]}
+            <span className="era-breadcrumb-product">ERA ERP</span><span className="era-breadcrumb-separator">/</span> {selectedOdooModule || viewLabels[view]}
           </div>
           <div className="company">
             <Building2 size={16} />
             {user.data?.tenant.name || "Empresa de demonstração"}
           </div>
         </header>
-        <main className="content era-content">
+        <main className="content era-content" onClick={() => mobileNavOpen && setMobileNavOpen(false)}>
           {(user.error || logout.error) && (
             <p role="alert" className="error">
               {user.error?.message || logout.error?.message}
@@ -387,13 +389,13 @@ function Catalog() {
               name={user.data?.name || "equipe ERA"}
               odooUrl={odooEntryUrl}
               views={views}
-              onViewChange={setView}
+              onViewChange={(nextView) => { setSelectedOdooModule(null); setView(nextView); }}
             />
           ) : view === "modules" ? (
             <EraModuleCenter
               odooUrl={odooEntryUrl}
               views={views}
-              onViewChange={setView}
+              onViewChange={(nextView) => { setSelectedOdooModule(null); setView(nextView); }}
             />
           ) : view === "users" || view === "branches" || view === "profiles" ? (
             <CorePanel

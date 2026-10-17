@@ -1810,3 +1810,381 @@ button.era-shortcut {
   text-align: left;
   cursor: pointer;
 }
+
+
+/* ERA ERP professional workspace navigation */
+.era-shell {
+  background: #f4f7fb;
+  color: #1b2b43;
+}
+.era-shell .era-sidebar {
+  width: 270px;
+  padding: 23px 15px 16px;
+  background: linear-gradient(180deg, #101f38 0%, #142743 100%);
+  border-right: 1px solid #223653;
+  box-shadow: 8px 0 28px #12223a0a;
+}
+.era-shell .era-brand {
+  min-height: 88px;
+  padding: 0 5px 18px;
+  border-bottom: 1px solid #ffffff16;
+}
+.era-shell .sidebar-logo {
+  width: 202px;
+  height: 101px;
+}
+.era-shell .workspace-label {
+  margin: 17px 7px 14px;
+  color: #9babc0;
+  font-size: 9px;
+  letter-spacing: 1.15px;
+}
+.era-shell .workspace-label span {
+  padding: 4px 7px;
+  color: #cfe4ff;
+  background: #ffffff12;
+  border: 1px solid #ffffff18;
+  font-size: 9px;
+}
+.era-nav-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 39px;
+  margin: 0 3px 14px;
+  padding: 0 10px;
+  border: 1px solid #ffffff1b;
+  border-radius: 9px;
+  color: #a7b6ca;
+  background: #ffffff0a;
+}
+.era-nav-search input {
+  min-width: 0;
+  width: 100%;
+  padding: 9px 0;
+  margin: 0;
+  border: 0;
+  outline: 0;
+  color: #f4f8ff;
+  background: transparent;
+  font-size: 11px;
+}
+.era-nav-search input::placeholder {
+  color: #9aa9bd;
+}
+.era-nav-search input:focus {
+  border: 0;
+  box-shadow: none;
+}
+.era-nav-search button {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border: 0;
+  color: #a7b6ca;
+  background: transparent;
+}
+.era-navigation {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff2b transparent;
+}
+.era-nav-group {
+  margin: 3px 0;
+}
+.era-nav-group-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  color: #d5deeb;
+  background: transparent;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 650;
+  transition: background 140ms ease, color 140ms ease;
+}
+.era-nav-group-trigger:hover,
+.era-nav-group.has-active > .era-nav-group-trigger {
+  color: #fff;
+  background: #ffffff0d;
+}
+.era-nav-group-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  color: #8eb8ef;
+}
+.era-chevron {
+  margin-left: auto;
+  color: #93a4bc;
+  transition: transform 150ms ease;
+}
+.era-chevron.expanded {
+  transform: rotate(180deg);
+}
+.era-nav-submenu {
+  position: relative;
+  margin: 2px 0 7px 18px;
+  padding: 3px 0 3px 13px;
+  border-left: 1px solid #ffffff18;
+}
+.era-nav-subitem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  color: #aebbd0;
+  background: transparent;
+  text-decoration: none;
+  text-align: left;
+  font-size: 11px;
+  transition: background 130ms ease, color 130ms ease;
+}
+.era-nav-subitem:hover {
+  color: #fff;
+  background: #ffffff0d;
+}
+.era-nav-subitem.active {
+  color: #fff;
+  background: linear-gradient(90deg, #2476d3 0%, #2366b3 100%);
+  box-shadow: 0 5px 14px #07172b35;
+  font-weight: 650;
+}
+.era-nav-subicon {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  color: #91a4bf;
+}
+.era-nav-subitem.active .era-nav-subicon {
+  color: #fff;
+}
+.era-external-icon {
+  margin-left: auto;
+  opacity: .6;
+}
+.era-shell .sidebar-bottom {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding: 13px 4px 0;
+  border-top-color: #ffffff18;
+}
+.era-shell .avatar {
+  color: #e9f2ff;
+  background: linear-gradient(145deg, #3579c6, #304f85);
+  font-weight: 700;
+}
+.sidebar-user-copy {
+  flex: 1;
+  min-width: 0;
+}
+.era-shell .sidebar-bottom strong {
+  color: #f1f5fb;
+  font-size: 10px;
+}
+.era-shell .sidebar-bottom small {
+  color: #a7b5c8;
+}
+.era-shell .sidebar-bottom button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #a9b8cc;
+}
+.era-shell .sidebar-bottom button:hover {
+  color: #fff;
+  background: #ffffff12;
+}
+.era-shell .main {
+  margin-left: 270px;
+}
+.era-shell .era-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  height: 66px;
+  padding: 0 30px;
+  border-bottom: 1px solid #e7edf4;
+  background: #ffffffed;
+  backdrop-filter: blur(12px);
+  box-shadow: none;
+}
+.era-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #314562;
+  font-size: 12px;
+  font-weight: 600;
+}
+.era-breadcrumb-product {
+  color: #8291a6;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .7px;
+}
+.era-breadcrumb .era-breadcrumb-separator {
+  margin: 0;
+  color: #c0cad7;
+}
+.era-shell .company {
+  max-width: 280px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-color: #e5ebf3;
+  color: #536882;
+  background: #f9fbfd;
+  font-size: 11px;
+}
+.era-shell .content.era-content {
+  padding: 31px 34px 46px;
+}
+.era-shell .page-heading h1,
+.era-shell .era-module-title h1 {
+  color: #182b45;
+}
+.era-shell .page-heading p:last-child {
+  color: #75859a;
+}
+.era-shell .table-card,
+.era-shell .catalog-summary {
+  border-color: #e3eaf2;
+  border-radius: 13px;
+  box-shadow: 0 5px 18px #19375b08;
+}
+.era-shell .table-card th {
+  color: #6d7e94;
+  background: #f7f9fc;
+}
+.era-shell .table-card td {
+  color: #52647c;
+}
+.era-shell .table-card tbody tr:hover {
+  background: #f8fbff;
+}
+.era-shell .nav:focus-visible,
+.era-nav-group-trigger:focus-visible,
+.era-nav-subitem:focus-visible,
+.era-mobile-menu:focus-visible,
+.era-nav-search:focus-within {
+  outline: 2px solid #5da6f5;
+  outline-offset: 2px;
+}
+.era-mobile-menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #e2e9f1;
+  border-radius: 9px;
+  color: #435976;
+  background: #fff;
+}
+@media (max-width: 900px) {
+  .era-shell .era-sidebar {
+    width: 250px;
+  }
+  .era-shell .main {
+    margin-left: 250px;
+  }
+  .era-shell .content.era-content {
+    padding: 25px 22px 36px;
+  }
+}
+@media (max-width: 640px) {
+  .era-shell .era-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    width: min(86vw, 310px);
+    height: 100dvh;
+    min-height: 100dvh;
+    padding: 15px 14px 13px;
+    overflow: hidden;
+    border-right: 1px solid #263955;
+    transform: translateX(-105%);
+    transition: transform 180ms ease;
+    box-shadow: 18px 0 45px #07172b30;
+  }
+  .era-shell .era-sidebar.is-open {
+    transform: translateX(0);
+  }
+  .era-shell .era-brand {
+    flex: 0 0 auto;
+    min-height: 78px;
+    padding: 0 4px 12px;
+    border-bottom: 1px solid #ffffff16;
+  }
+  .era-shell .sidebar-logo {
+    width: 178px;
+    height: 84px;
+  }
+  .era-shell .workspace-label {
+    display: flex;
+    margin: 12px 5px 10px;
+  }
+  .era-nav-search {
+    flex: 0 0 auto;
+    margin-bottom: 10px;
+  }
+  .era-navigation {
+    display: block;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .era-shell .sidebar-bottom {
+    display: flex;
+    flex: 0 0 auto;
+  }
+  .era-shell .main {
+    margin-left: 0;
+  }
+  .era-shell .era-topbar {
+    height: 58px;
+    justify-content: flex-start;
+    gap: 11px;
+    padding: 0 13px;
+  }
+  .era-mobile-menu {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
+  .era-breadcrumb {
+    min-width: 0;
+    gap: 7px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .era-shell .company {
+    margin-left: auto;
+    max-width: 46%;
+    padding: 7px;
+    font-size: 9px;
+  }
+  .era-shell .company svg {
+    flex: 0 0 auto;
+  }
+  .era-shell .content.era-content {
+    padding: 17px 13px 30px;
+  }
+}

@@ -352,7 +352,7 @@ export function EraModuleCenter({
         <div>
           <span className="era-eyebrow">CENTRAL ERA</span>
           <h1>Módulos</h1>
-          <p>Os módulos com tela na ERA abrem aqui, com os dados gravados no Odoo; os demais abrem no próprio Odoo.</p>
+          <p>Acesse os processos integrados à ERA ou abra os demais módulos no ambiente Odoo.</p>
         </div>
         <OdooLink className="era-primary-link" href={odooUrl}>
           Abrir o Odoo <ArrowUpRight size={16} />
@@ -396,7 +396,7 @@ export function EraModuleCenter({
         <div className="era-no-modules">Nenhum módulo corresponde a “{query}”.</div>
       )}
       <div className="era-module-disclaimer">
-        O Odoo continua responsável pelos registros e operações: as telas da ERA leem e gravam diretamente nele, sem cópia dos dados.
+        Os dados operacionais permanecem no Odoo. Apenas os módulos integrados à ERA abrem dentro desta interface; os demais são acessados no Odoo.
       </div>
     </div>
   );
