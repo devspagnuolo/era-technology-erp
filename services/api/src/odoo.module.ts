@@ -9,6 +9,7 @@ import { OdooContacts, OdooContactsController } from "./odoo-contacts";
 import { OdooSales, OdooSalesController } from "./odoo-sales";
 import { OdooPurchases, OdooPurchasesController } from "./odoo-purchases";
 import { OdooTransfers, OdooTransfersController } from "./odoo-transfers";
+import { OdooInvoices, OdooInvoicesController } from "./odoo-invoices";
 @Module({
   imports: [DatabaseModule],
   controllers: [
@@ -18,6 +19,7 @@ import { OdooTransfers, OdooTransfersController } from "./odoo-transfers";
     OdooSalesController,
     OdooPurchasesController,
     OdooTransfersController,
+    OdooInvoicesController,
   ],
   providers: [
     { provide: OdooClient, useFactory: () => new OdooClient(readOdooConfig()) },
@@ -28,6 +30,7 @@ import { OdooTransfers, OdooTransfersController } from "./odoo-transfers";
     OdooSales,
     OdooPurchases,
     OdooTransfers,
+    OdooInvoices,
   ],
 })
 export class OdooModule {}

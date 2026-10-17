@@ -1794,3 +1794,11 @@ label > textarea {
   background: #eaf6ed;
   color: #398451;
 }
+.badge.stage-open {
+  background: #fdf3dc;
+  color: #94690f;
+}
+.badge.stage-paid {
+  background: #eaf6ed;
+  color: #398451;
+}

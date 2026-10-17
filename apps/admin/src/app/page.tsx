@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   Truck,
   Warehouse,
+  ReceiptText,
 } from "lucide-react";
 import { api, useSession } from "../lib/session";
 import { Button } from "../components/ui/button";
@@ -28,6 +29,7 @@ import { OdooProducts } from "../components/odoo-products";
 import { OdooContacts } from "../components/odoo-contacts";
 import { OdooOrders, PURCHASES, SALES } from "../components/odoo-orders";
 import { OdooTransfers } from "../components/odoo-transfers";
+import { OdooInvoices } from "../components/odoo-invoices";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -194,6 +196,7 @@ function Catalog() {
     sales: "Vendas",
     purchases: "Compras",
     inventory: "Estoque",
+    invoices: "Faturas",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
@@ -259,6 +262,14 @@ function Catalog() {
             onClick={() => setView("inventory")}
           >
             <Warehouse size={19} /> Estoque
+          </button>
+        )}
+        {user.data?.permissions.includes("invoices:read") && (
+          <button
+            className={view === "invoices" ? "nav active" : "nav"}
+            onClick={() => setView("invoices")}
+          >
+            <ReceiptText size={19} /> Faturas
           </button>
         )}
         {user.data?.permissions.includes("audit:read") && (
@@ -335,6 +346,11 @@ function Catalog() {
               view={view}
               permissions={user.data?.permissions ?? []}
               currentUserId={user.data?.id ?? ""}
+            />
+          ) : view === "invoices" ? (
+            <OdooInvoices
+              permissions={user.data?.permissions ?? []}
+              odooUrl={odooEntryUrl}
             />
           ) : view === "inventory" ? (
             <OdooTransfers

@@ -782,7 +782,12 @@ export class OdooForms {
           models: Models;
         }>(companyId, relation, "get_views", [[[false, "list"]]], {});
         extra[relation] = parseArch(sub.views.list.arch);
-        Object.assign(models, sub.models);
+        // Mescla campo a campo: a lista do filho também descreve modelos já
+        // conhecidos (inclusive o principal) com menos campos.
+        for (const [name, entry] of Object.entries(sub.models))
+          models[name] = {
+            fields: { ...entry.fields, ...models[name]?.fields },
+          };
       } catch {
         // sem acesso ao modelo filho: o campo fica fora do formulário
       }
