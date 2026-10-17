@@ -18,6 +18,11 @@ import {
   toEra,
   toOdoo,
 } from "../services/api/src/odoo-products";
+import {
+  contactInput,
+  contactUpdate,
+  toOdooContact,
+} from "../services/api/src/odoo-contacts";
 test("vínculo empresa ERA → empresa Odoo vem do ambiente", () => {
   assert.deepEqual(parseCompanies("era-demo:1, loja-2 : 4,"), {
     "era-demo": 1,
@@ -111,4 +116,31 @@ test("mapeia campos ERA ↔ Odoo sem aceitar empresa ou campos livres", () => {
       active: true,
     },
   );
+});
+test("contatos: mapeia papéis só quando o Odoo tem Faturamento", () => {
+  const input = contactUpdate.parse({
+    document: "",
+    customer: true,
+    supplier: false,
+    kind: "person",
+  });
+  assert.deepEqual(toOdooContact(input, true), {
+    vat: false,
+    is_company: false,
+    customer_rank: 1,
+    supplier_rank: 0,
+  });
+  assert.deepEqual(toOdooContact(input, false), {
+    vat: false,
+    is_company: false,
+  });
+  assert.equal(
+    contactInput.safeParse({ name: "X Ltda", company_id: 2 }).success,
+    false,
+  );
+  assert.equal(
+    contactInput.safeParse({ name: "X Ltda", email: "x" }).success,
+    false,
+  );
+  assert.equal(contactInput.parse({ name: "X Ltda" }).customer, true);
 });

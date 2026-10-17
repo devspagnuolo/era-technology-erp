@@ -1434,3 +1434,8 @@ select:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+.checkbox-group {
+  display: flex;
+  gap: 18px;
+  align-self: end;
+}

@@ -11,6 +11,9 @@ export const permissions = [
   "products:create",
   "products:update",
   "audit:read",
+  "contacts:read",
+  "contacts:create",
+  "contacts:update",
   "customers:read",
   "customers:create",
   "customers:update",
@@ -20,6 +23,11 @@ export const permissions = [
   "catalog:config", // For categories, brands, units, price tables
 ] as const;
 export type PermissionKey = (typeof permissions)[number];
+const contactsFull: PermissionKey[] = [
+  "contacts:read",
+  "contacts:create",
+  "contacts:update",
+];
 export const rolePresets: Record<
   string,
   { label: string; permissions: PermissionKey[] }
@@ -34,6 +42,7 @@ export const rolePresets: Record<
       "products:read",
       "products:create",
       "products:update",
+      ...contactsFull,
       "audit:read",
     ],
   },
@@ -44,14 +53,27 @@ export const rolePresets: Record<
       "products:read",
       "products:create",
       "products:update",
+      ...contactsFull,
     ],
   },
-  OPERATOR: { label: "Operador", permissions: ["products:read"] },
-  FINANCIAL: { label: "Financeiro", permissions: ["core:read"] },
-  FISCAL: { label: "Fiscal", permissions: ["core:read"] },
-  COMMERCIAL: { label: "Comercial", permissions: ["products:read"] },
+  OPERATOR: {
+    label: "Operador",
+    permissions: ["products:read", "contacts:read"],
+  },
+  FINANCIAL: {
+    label: "Financeiro",
+    permissions: ["core:read", "contacts:read"],
+  },
+  FISCAL: { label: "Fiscal", permissions: ["core:read", "contacts:read"] },
+  COMMERCIAL: {
+    label: "Comercial",
+    permissions: ["products:read", ...contactsFull],
+  },
   INVENTORY: { label: "Estoque", permissions: ["products:read"] },
-  PURCHASES: { label: "Compras", permissions: ["products:read"] },
+  PURCHASES: {
+    label: "Compras",
+    permissions: ["products:read", ...contactsFull],
+  },
 };
 export function mayGrant(
   actorPermissions: readonly string[],

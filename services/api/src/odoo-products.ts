@@ -14,9 +14,9 @@ import {
   Req,
 } from "@nestjs/common";
 import { z } from "zod";
-import { Database } from "./database";
 import { AuthRequest, Permission, parse } from "./auth";
 import { Domain, OdooClient } from "./odoo";
+import { OdooScope, auditAction } from "./odoo-scope";
 
 // Produtos vivem no Odoo (product.template). A ERA consulta e grava por meio da
 // API do Odoo e registra cada alteração na própria auditoria.
@@ -132,33 +132,14 @@ export function toOdoo(input: z.infer<typeof odooProductUpdate>) {
 @Injectable()
 export class OdooProducts {
   private optionalFields: Promise<string[]> | null = null;
-  constructor(
-    @Inject(OdooClient) private odoo: OdooClient,
-    @Inject(Database) private db: Database,
-  ) {}
-
-  async status(req: AuthRequest) {
-    if (!this.odoo.configured)
-      return { configured: false, connected: false, linked: false };
-    const linked = await this.company(req).then(
-      () => true,
-      () => false,
-    );
-    try {
-      return {
-        configured: true,
-        connected: true,
-        linked,
-        version: await this.odoo.version(),
-      };
-    } catch {
-      return { configured: true, connected: false, linked };
-    }
+  private odoo: OdooClient;
+  constructor(@Inject(OdooScope) private scope: OdooScope) {
+    this.odoo = scope.odoo;
   }
 
   async list(req: AuthRequest, raw: unknown) {
     const { q, status, page, pageSize } = parse(searchInput, raw);
-    const companyId = await this.company(req);
+    const companyId = await this.scope.company(req);
     const domain: Domain = [["company_id", "=", companyId]];
     if (status !== "all") domain.push(["active", "=", status === "active"]);
     if (q)
@@ -192,7 +173,7 @@ export class OdooProducts {
   }
 
   async options(req: AuthRequest) {
-    const companyId = await this.company(req);
+    const companyId = await this.scope.company(req);
     const [categories, uoms] = await Promise.all([
       this.odoo.execute<Array<{ id: number; complete_name: string }>>(
         companyId,
@@ -217,20 +198,28 @@ export class OdooProducts {
 
   async create(req: AuthRequest, raw: unknown) {
     const input = parse(odooProductInput, raw);
-    const companyId = await this.company(req);
+    const companyId = await this.scope.company(req);
     await this.assertUniqueSku(companyId, input.sku);
     const values = { ...toOdoo(input), company_id: companyId };
     const [id] = await this.odoo.execute<number[]>(companyId, MODEL, "create", [
       [values],
     ]);
     const after = await this.read(companyId, id);
-    await this.audit(req, "create", id, null, after);
+    await this.scope.audit(
+      req,
+      "odoo.products",
+      MODEL,
+      "create",
+      id,
+      null,
+      after,
+    );
     return after;
   }
 
   async update(req: AuthRequest, id: number, raw: unknown) {
     const input = parse(odooProductUpdate, raw);
-    const companyId = await this.company(req);
+    const companyId = await this.scope.company(req);
     const before = await this.read(companyId, id);
     if (input.sku !== undefined && input.sku !== before.sku)
       await this.assertUniqueSku(companyId, input.sku, id);
@@ -240,13 +229,15 @@ export class OdooProducts {
     if (input.tracksStock === undefined) delete values.is_storable;
     await this.odoo.execute(companyId, MODEL, "write", [[id], values]);
     const after = await this.read(companyId, id);
-    const action =
-      input.active === undefined || input.active === before.active
-        ? "update"
-        : input.active
-          ? "activate"
-          : "deactivate";
-    await this.audit(req, action, id, before, after);
+    await this.scope.audit(
+      req,
+      "odoo.products",
+      MODEL,
+      auditAction(input.active, before.active),
+      id,
+      before,
+      after,
+    );
     return after;
   }
 
@@ -298,44 +289,11 @@ export class OdooProducts {
     this.optionalFields.catch(() => (this.optionalFields = null));
     return this.optionalFields;
   }
-
-  private async company(req: AuthRequest) {
-    const tenant = await this.db.tenant.findUnique({
-      where: { id: req.principal.tenantId },
-      select: { slug: true },
-    });
-    if (!tenant) throw new NotFoundException("Empresa não encontrada");
-    return this.odoo.companyFor(tenant.slug);
-  }
-
-  private audit(
-    req: AuthRequest,
-    action: string,
-    id: number,
-    before: object | null,
-    after: object,
-  ) {
-    return this.db.auditLog.create({
-      data: {
-        tenantId: req.principal.tenantId,
-        actorId: req.principal.userId,
-        ip: req.ip ?? "unknown",
-        module: "odoo.products",
-        action,
-        recordId: MODEL + ":" + id,
-        before: before ?? undefined,
-        after,
-      },
-    });
-  }
 }
 
 @Controller("odoo")
 export class OdooProductsController {
   constructor(@Inject(OdooProducts) private products: OdooProducts) {}
-  @Get("status") @Permission("products:read") status(@Req() req: AuthRequest) {
-    return this.products.status(req);
-  }
   @Get("products") @Permission("products:read") list(
     @Req() req: AuthRequest,
     @Query() query: unknown,
