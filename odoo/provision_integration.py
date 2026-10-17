@@ -6,11 +6,17 @@ login = os.environ.get("ERA_INTEGRATION_LOGIN", "era-integracao")
 password = os.environ["ERA_INTEGRATION_PASSWORD"]
 company = env.ref("base.main_company")
 groups = [env.ref("base.group_user").id]
-stock_manager = env.ref("stock.group_stock_manager", raise_if_not_found=False)
-if stock_manager:
-    groups.append(stock_manager.id)
-else:
-    print("era.provision: módulo stock ausente; usuário criado sem acesso a Inventário")
+# Acessos dos módulos que a ERA lê e grava; módulos ausentes são ignorados.
+for xmlid, area in [
+    ("stock.group_stock_manager", "Inventário"),
+    ("sales_team.group_sale_manager", "Vendas"),
+    ("purchase.group_purchase_manager", "Compras"),
+]:
+    group = env.ref(xmlid, raise_if_not_found=False)
+    if group:
+        groups.append(group.id)
+    else:
+        print("era.provision: módulo de", area, "ausente; usuário criado sem esse acesso")
 Users = env["res.users"].sudo().with_context(active_test=False)
 user = Users.search([("login", "=", login)], limit=1)
 values = {
