@@ -4,10 +4,11 @@ import {
   ProductsController,
   ProductRepository,
   CreateProduct,
+  UpdateProduct,
 } from "./products";
 @Module({
   imports: [DatabaseModule],
   controllers: [ProductsController],
-  providers: [ProductRepository, CreateProduct],
+  providers: [ProductRepository, CreateProduct, UpdateProduct],
 })
 export class ProductsModule {}

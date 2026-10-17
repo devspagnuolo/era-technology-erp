@@ -32,7 +32,19 @@ export function parse<T extends z.ZodTypeAny>(
   value: unknown,
 ): z.output<T> {
   const result = schema.safeParse(value);
-  if (!result.success) throw new BadRequestException(result.error.flatten());
+  if (!result.success) {
+    // message legível para a interface; fieldErrors para destacar os campos.
+    const issue = result.error.issues[0];
+    const field = issue.path.join(".");
+    throw new BadRequestException({
+      message:
+        "Dados inválidos" +
+        (field ? " em " + field : "") +
+        ": " +
+        issue.message,
+      ...result.error.flatten(),
+    });
+  }
   return result.data;
 }
 @Injectable()

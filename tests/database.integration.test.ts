@@ -40,6 +40,44 @@ test(
         await db.outboxEvent.count({ where: { tenantId: ids[0] } }),
         1,
       );
+      const created = list.items[0];
+      await assert.rejects(
+        () =>
+          repository.update(ids[1], "test-actor", "127.0.0.1", created.id, {
+            name: "Invasão",
+          }),
+        (error: unknown) =>
+          error instanceof Error && error.name === "NotFoundException",
+      );
+      const updated = await repository.update(
+        ids[0],
+        "test-actor",
+        "127.0.0.1",
+        created.id,
+        { salePrice: "11.00", active: false },
+      );
+      assert.equal(updated.salePrice.toString(), "11");
+      assert.equal(updated.active, false);
+      assert.equal(updated.name, "Produto A");
+      const audit = await db.auditLog.findFirst({
+        where: { tenantId: ids[0], recordId: created.id, action: "deactivate" },
+      });
+      assert.equal((audit?.before as { salePrice: string }).salePrice, "10.5");
+      assert.equal(
+        await db.outboxEvent.count({
+          where: { tenantId: ids[0], type: "product.updated.v1" },
+        }),
+        1,
+      );
+      await repository.create(ids[0], "test-actor", "127.0.0.1", {
+        ...product,
+        sku: "OUTRO",
+      });
+      await assert.rejects(() =>
+        repository.update(ids[0], "test-actor", "127.0.0.1", created.id, {
+          sku: "OUTRO",
+        }),
+      );
       await assert.rejects(() =>
         db.$transaction(async (tx) => {
           await tx.product.create({

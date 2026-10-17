@@ -10,7 +10,7 @@ O cliente envia credenciais com o identificador público da empresa. A API valid
 
 Refresh tokens aleatórios são armazenados somente como SHA-256 no banco. A rotação consome a sessão anterior atomicamente e emite outra; revogação torna também o JWT anterior inválido. A UI mantém tokens apenas em memória: recarregar a página exige novo login. A resposta 401 tenta renovar a sessão uma vez. A tela de login não contém senha padrão.
 
-Produtos: controller → caso de uso → repository → transação Prisma. A transação grava produto, auditoria e outbox; falha em qualquer etapa reverte tudo. Preços são strings decimais na API e DECIMAL(18,2) no PostgreSQL. SKU é único por tenant. O cadastro envia versão de evento explícita.
+Produtos: controller → caso de uso → repository → transação Prisma. A transação grava produto, auditoria e outbox; falha em qualquer etapa reverte tudo. Preços são strings decimais na API e DECIMAL(18,2) no PostgreSQL. SKU é único por tenant. O cadastro envia versão de evento explícita. A edição (PATCH /products/:id) altera campos e status no mesmo fluxo transacional, registrando antes/depois na auditoria e o evento product.updated.v1.
 
 O worker entrega a outbox ao BullMQ com jobId estável e retentativas. publishedAt significa enfileirado, não processado. O consumidor inicial invalida uma chave Redis por tenant, de forma idempotente. Jobs concluídos e com falha são retidos; uma política operacional de retenção e replay deve ser definida antes de escalar. Eventos desconhecidos falham explicitamente.
 
@@ -28,7 +28,7 @@ As consultas HTTP são limitadas pelo tenant autenticado. Consulta de login por 
 
 ## Permissões atuais
 
-products:read, products:create, audit:read, core:read, branches:create, users:read, users:create, users:update e profiles:read. O papel é descritivo; não implica permissões automaticamente. Há nove perfis predefinidos, com permissões limitadas aos módulos já implementados. A criação de usuário aplica as permissões do perfil, sem permitir concessões superiores às do autor. Não é permitido alterar o próprio status. Ainda faltam perfis personalizados e políticas por registro/filial. Usuário inativo perde acesso imediatamente.
+products:read, products:create, products:update, audit:read, core:read, branches:create, users:read, users:create, users:update e profiles:read. O papel é descritivo; não implica permissões automaticamente. Há nove perfis predefinidos, com permissões limitadas aos módulos já implementados. A criação de usuário aplica as permissões do perfil, sem permitir concessões superiores às do autor. Não é permitido alterar o próprio status. Ainda faltam perfis personalizados e políticas por registro/filial. Usuário inativo perde acesso imediatamente. A suspensão de empresa não é exposta pela API (PATCH /tenant aceita apenas configurações), pois sem superadministrador a empresa não poderia ser reativada.
 
 ## Arquivos e integrações
 

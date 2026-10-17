@@ -46,10 +46,11 @@ export const tenantSettingsInput = z
     features: z.record(z.boolean()).optional(),
   })
   .strict();
-export const updateTenantInput = z.object({
-  settings: tenantSettingsInput.optional(),
-  active: z.boolean().optional(),
-});
+// A suspensão da empresa não é exposta: sem superadministrador, o próprio
+// administrador perderia o acesso de forma irreversível.
+export const updateTenantInput = z
+  .object({ settings: tenantSettingsInput.optional() })
+  .strict();
 export const userInput = z.object({
   name: z.string().trim().min(2).max(120),
   email: z
@@ -153,7 +154,6 @@ export class CoreRepository {
       const tenant = await tx.tenant.update({
         where: { id: tenantId },
         data: {
-          active: data.active,
           settings: data.settings
             ? (data.settings as Prisma.InputJsonValue)
             : undefined,
@@ -172,11 +172,6 @@ export class CoreRepository {
           after: { ...tenant, createdAt: tenant.createdAt.toISOString() },
         },
       });
-      if (!tenant.active)
-        await tx.session.updateMany({
-          where: { tenantId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
       return tenant;
     });
   }

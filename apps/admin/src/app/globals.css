@@ -603,3 +603,7 @@ select {
 select:focus-visible {
   outline: 2px solid #1b725a;
 }
+.row-actions {
+  display: flex;
+  gap: 8px;
+}

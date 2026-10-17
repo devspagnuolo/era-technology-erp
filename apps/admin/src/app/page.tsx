@@ -162,7 +162,7 @@ function Catalog() {
   const setSession = useSession((s) => s.setSession);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [view, setView] = useState<
     "products" | "audit" | "users" | "branches" | "profiles"
   >("products");
@@ -193,6 +193,18 @@ function Catalog() {
       >("audit"),
     enabled:
       view === "audit" && !!user.data?.permissions.includes("audit:read"),
+  });
+  const canUpdate = !!user.data?.permissions.includes("products:update");
+  const toggle = useMutation({
+    mutationFn: (product: Product) =>
+      api("products/" + product.id, {
+        method: "PATCH",
+        body: JSON.stringify({ active: !product.active }),
+      }),
+    onSuccess: () => {
+      void cache.invalidateQueries({ queryKey: ["products"] });
+      void cache.invalidateQueries({ queryKey: ["audit"] });
+    },
   });
   const logout = useMutation({
     mutationFn: () => api("auth/logout", { method: "POST" }),
@@ -303,7 +315,7 @@ function Catalog() {
                 </div>
                 {view === "products" &&
                   user.data?.permissions.includes("products:create") && (
-                    <Button onClick={() => setCreating(true)}>
+                    <Button onClick={() => setEditing("new")}>
                       <Plus size={17} /> Novo produto
                     </Button>
                   )}
@@ -340,6 +352,11 @@ function Catalog() {
                         />
                       </label>
                     </div>
+                    {toggle.error && (
+                      <p role="alert" className="error">
+                        {toggle.error.message}
+                      </p>
+                    )}
                     {products.error ? (
                       <div className="empty" role="alert">
                         <h3>Não foi possível carregar o catálogo</h3>
@@ -369,6 +386,7 @@ function Catalog() {
                                 <th>Unidade</th>
                                 <th>Preço de venda</th>
                                 <th>Status</th>
+                                {canUpdate && <th>Ações</th>}
                               </tr>
                             </thead>
                             <tbody>
@@ -390,6 +408,27 @@ function Catalog() {
                                       {p.active ? "Ativo" : "Inativo"}
                                     </span>
                                   </td>
+                                  {canUpdate && (
+                                    <td>
+                                      <div className="row-actions">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => setEditing(p)}
+                                        >
+                                          Editar
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={toggle.isPending}
+                                          onClick={() => toggle.mutate(p)}
+                                        >
+                                          {p.active ? "Inativar" : "Reativar"}
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  )}
                                 </tr>
                               ))}
                             </tbody>
@@ -484,11 +523,22 @@ function Catalog() {
           )}
         </main>
       </div>
-      {creating && <ProductForm onClose={() => setCreating(false)} />}
+      {editing && (
+        <ProductForm
+          product={editing === "new" ? undefined : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }
-function ProductForm({ onClose }: { onClose: () => void }) {
+function ProductForm({
+  product,
+  onClose,
+}: {
+  product?: Product;
+  onClose: () => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
@@ -500,11 +550,23 @@ function ProductForm({ onClose }: { onClose: () => void }) {
     formState: { errors },
   } = useForm<Input>({
     resolver: zodResolver(schema),
-    defaultValues: { unit: "UN", salePrice: "0.00" },
+    defaultValues: product
+      ? {
+          sku: product.sku,
+          name: product.name,
+          unit: product.unit,
+          salePrice: Number(product.salePrice).toFixed(2),
+        }
+      : { unit: "UN", salePrice: "0.00" },
   });
   const create = useMutation({
     mutationFn: (input: Input) =>
-      api("products", { method: "POST", body: JSON.stringify(input) }),
+      product
+        ? api("products/" + product.id, {
+            method: "PATCH",
+            body: JSON.stringify(input),
+          })
+        : api("products", { method: "POST", body: JSON.stringify(input) }),
     onSuccess: () => {
       void cache.invalidateQueries({ queryKey: ["products"] });
       void cache.invalidateQueries({ queryKey: ["audit"] });
@@ -524,7 +586,9 @@ function ProductForm({ onClose }: { onClose: () => void }) {
       <div className="modal-heading">
         <div>
           <p className="eyebrow">CATÁLOGO</p>
-          <h2 id="product-title">Novo produto</h2>
+          <h2 id="product-title">
+            {product ? "Editar produto" : "Novo produto"}
+          </h2>
         </div>
         <Button
           variant="outline"
@@ -572,7 +636,11 @@ function ProductForm({ onClose }: { onClose: () => void }) {
             Cancelar
           </Button>
           <Button disabled={create.isPending}>
-            {create.isPending ? "Salvando…" : "Cadastrar produto"}
+            {create.isPending
+              ? "Salvando…"
+              : product
+                ? "Salvar alterações"
+                : "Cadastrar produto"}
           </Button>
         </div>
       </form>
