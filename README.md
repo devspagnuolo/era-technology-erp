@@ -1,27 +1,45 @@
 # ERA Technology ERP
 
-Monorepo do núcleo ERP, em implementação. A primeira fatia funcional cobre autenticação multiempresa, permissões por ação, gestão inicial de filiais e usuários, cadastro/consulta de produtos e auditoria. Não representa a versão 1 completa.
+ERP em construção com Odoo Community como motor operacional e uma interface própria ERA. A hospedagem e os serviços de nuvem têm custos separados do licenciamento do Odoo Community. Não contratar Odoo Enterprise nem serviços pagos da KMEE; avaliar módulos comunitários OCA individualmente, inclusive licença e compatibilidade.
 
-## Executar
+## Estado atual e limites
 
-Requisitos: Node.js 22+, npm, Docker com Compose.
+- A aplicação pública ERA é um painel de acesso e administração inicial.
+- A central apresenta 19 áreas e abre o ambiente do Odoo. Hoje os cartões levam ao seletor de aplicativos; não são deep links garantidos para cada módulo.
+- Produtos e estoque encaminham ao Inventário do Odoo. O Odoo é a fonte oficial dos cadastros e operações.
+- Não há sincronização de dados, API Odoo integrada nem login único. O acesso ERA e o acesso Odoo são separados.
+- A API e o PostgreSQL ERA continuam como base do protótipo de autenticação, permissões, usuários/filiais e auditoria. O antigo catálogo de produtos dessa API é dado de demonstração e não é fonte de verdade do Odoo.
+- Fidelizei, Type Digital e Nexo CRM são integrações futuras; ainda não estão conectadas.
 
-1. Copie .env.example para .env e configure JWT_SECRET e SEED_PASSWORD (mínimo 12 caracteres).
-2. Execute `docker compose up -d`.
-3. Execute `npm install` e `npm run db:generate`.
-4. Execute `npm run db:migrate` e `node --env-file=.env --import tsx packages/database/seed.ts`.
-5. Inicie a API: `node --env-file=.env --import tsx services/api/src/main.ts`.
-6. Em outro terminal: `npm run dev:admin`.
+Consulte [arquitetura e limites](docs/architecture.md), [roadmap](docs/roadmap.md), [operação no Render](docs/render-deployment.md) e [validações](docs/validation.md).
 
-Admin: http://localhost:3000. API: http://localhost:3001/v1. Swagger em desenvolvimento: http://localhost:3001/docs.
-Acesso inicial: empresa era-demo, e-mail admin@era.local, senha definida em SEED_PASSWORD. O seed não altera senhas de usuários existentes.
+## Fluxo de desenvolvimento: GitHub → Render
 
-## Qualidade
+O repositório é a fonte de verdade do código e da documentação; não depender de arquivos locais para dar continuidade.
 
-- `npm test`: regras e testes de integração quando TEST_DATABASE_URL estiver definido.
-- `npm run build`: compilação da API e aplicação administrativa.
-- Nunca use o banco de produção para testes.
+1. Faça alterações em uma branch GitHub derivada de `feat/era-admin-deploy`.
+2. Revise e valide o diff; use os checks do GitHub quando disponíveis.
+3. Integre a mudança em `feat/era-admin-deploy`. O Render acompanha essa branch para `era-admin` e `era-api`.
+4. O serviço Odoo acompanha `feat/odoo-community-poc`, isolado dos deploys ERA. Não misture alterações nessa branch.
+5. Configure segredos somente no ambiente privado do Render; nunca os coloque no GitHub, em commits, documentação ou variáveis `NEXT_PUBLIC_*`.
 
-## Estado
+Alterações de infraestrutura em `render.yaml` exigem revisão explícita do diff e do custo no Render antes de sincronizar o Blueprint. Uma alteração apenas de interface/documentação não deve mudar planos ou criar serviços.
 
-Consulte docs/architecture.md e docs/roadmap.md para limites, decisões e sequência de implementação.
+## Serviços publicados
+
+| Serviço | Papel | Estado/configuração |
+|---|---|---|
+| `era-admin` | Painel ERA Next.js | Render Free; `https://era-admin-fxf1.onrender.com`; branch `feat/era-admin-deploy` |
+| `era-api` | API privada NestJS | Render `0.5c-512mb`; branch `feat/era-admin-deploy` |
+| `era-db` | PostgreSQL ERA | PostgreSQL 18; plano definido em `render.yaml`; sem allowlist de acesso externo |
+| `era-odoo-poc` | Odoo Community existente | `https://era-odoo-poc.onrender.com`; branch `feat/odoo-community-poc`; serviço independente |
+
+Planos e valores faturados podem mudar; o painel/fatura do Render é a referência de cobrança, não uma estimativa fixa neste README.
+
+## Conta de demonstração ERA
+
+O seed inicial define empresa `era-demo` e e-mail `admin@era.local`. A senha inicial é mantida em `SEED_PASSWORD`, no ambiente privado de `era-api`. O seed não troca a senha de uma conta que já existe. Essa conta ERA não é automaticamente uma conta Odoo; o Odoo pode solicitar autenticação separada.
+
+## Qualidade e segurança
+
+Os workflows de CI e os comandos de teste/build são definidos no repositório. Nunca use banco de produção para testes. Não registre dados reais de clientes, credenciais ou documentos fiscais durante o piloto.

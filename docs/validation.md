@@ -1,15 +1,28 @@
-# Validação desta entrega
+# Validações ERA
 
-Verificações executadas em 14/09/2026:
+## Estado do deploy visual (17/10/2026)
 
-- Schema Prisma válido e client gerado.
-- Migration inicial gerada a partir do schema; aplicação em PostgreSQL local ainda não executada.
-- Compilação de produção aprovada para admin, API e worker.
-- 15 testes aprovados, zero falhas; 1 teste de integração PostgreSQL ignorado porque TEST_DATABASE_URL não está configurada.
-- Teste HTTP inicia os módulos NestJS com banco simulado e verifica 200 no health, 401 sem sessão, 403 sem permissão e escopo de tenant na consulta.
-- Testes incluem revogação, assinatura inválida, concessão de permissões, campos protegidos e isolamento do cache entre sessões.
-- npm audit: zero vulnerabilidades reportadas após atualização e deduplicação.
+- Branch de produção do painel: `feat/era-admin-deploy`.
+- Commit da interface validada: `ff80a470743dd36f85d035f5a332ce1aae4957a6` ([commit no GitHub](https://github.com/devspagnuolo/era-technology-erp/commit/ff80a470743dd36f85d035f5a332ce1aae4957a6)).
+- Deploy Render que ficou ativo: `dep-db9fv1gjgiss738pfm90`.
+- Build de produção do admin concluído sem erro de compilação ou TypeScript antes da publicação.
+- A página pública de login foi conferida no navegador: logo oficial, texto e layout estreito responsivo visíveis.
+- O acesso pós-login não foi testado nesta verificação; não foram inseridas credenciais para a conta ERA.
+- O link para Odoo e a central de módulos não constituem prova de integração. API Odoo, SSO, leitura/escrita sincronizada e isolamento de empresas Odoo ainda não foram testados nem implementados.
+- O último commit aqui descrito é o da interface; commits posteriores podem atualizar documentação sem mudar esse resultado visual. Confirme o deploy ativo no Render antes de usar como evidência operacional.
 
-A rotina .github/workflows/ci.yml provisiona PostgreSQL, aplica a migration e executa o teste de integração sem skip. Essa rotina foi criada, mas ainda não executada no GitHub.
+## Validações históricas da base
 
-Não foram executados nesta máquina: fluxo completo com PostgreSQL/Redis reais, testes visuais no navegador, processamento do worker com Redis, publicação no Render ou testes de carga. O ERP continua em desenvolvimento; consultar roadmap.md.
+Verificações executadas em 14/09/2026: 15 testes aprovados, zero falhas e 1 teste de integração PostgreSQL ignorado sem `TEST_DATABASE_URL`; build da API/admin/worker aprovado naquela versão; auditoria npm sem vulnerabilidades reportadas naquela data. Esses resultados são históricos e não atestam a versão atual.
+
+A rotina `.github/workflows/ci.yml` foi criada para executar testes com PostgreSQL; valide o resultado dos checks no GitHub para cada commit. Não presumir que um teste histórico cobre mudanças atuais.
+
+## Ainda não validado
+
+- Login ERA ponta a ponta, navegação após autenticação e controles administrativos em produção.
+- Odoo API/SSO, links diretos aos módulos, permissões e regras multiempresa.
+- Integrações Fidelizei, Type Digital ou Nexo CRM.
+- Recuperação de backup, carga, observabilidade e operação de filas com Redis real.
+- Licença/compatibilidade de cada addon OCA que venha a ser instalado.
+
+Não usar bancos de produção, dados fiscais reais ou credenciais reais para testar. Registre nesta página data, branch, commit, cenário, resultado e responsável por cada nova validação.

@@ -1,41 +1,56 @@
 # Arquitetura e limites atuais
 
-## Estrutura
+Estado documentado em 17/10/2026. O diagrama lógico, não a separação de domínios comerciais, orienta a implementação.
 
-Monólito modular em um monorepo: apps/admin (Next.js), services/api (NestJS), services/worker (BullMQ), packages/database (Prisma) e packages/shared (contratos). PDV e portal terão aplicações próprias quando seus fluxos forem implementados. Não há microserviços.
+## Decisão de produto e fonte da verdade
 
-## Primeira fatia vertical
+Odoo Community é o motor das operações do ERP. O Odoo deve ser o sistema mestre de contatos, CRM, vendas, compras, inventário, faturamento e demais registros operacionais já cobertos por seus módulos.
 
-O cliente envia credenciais com o identificador público da empresa. A API valida o usuário naquela empresa e cria sessão. O JWT contém tenantId, sub e sid, com validade de 15 minutos, issuer e audience fixos. O servidor consulta a sessão e as permissões atuais em cada requisição. O corpo HTTP nunca define o tenant das operações protegidas.
+A ERA é a camada de experiência: identidade visual própria, painel inicial, navegação mais simples e administração auxiliar em evolução. A central lista 19 áreas do menu existente do Odoo. Atualmente os cartões abrem o seletor de aplicativos em outra aba; selecionar o módulo ainda é uma ação dentro do Odoo.
 
-Refresh tokens aleatórios são armazenados somente como SHA-256 no banco. A rotação consome a sessão anterior atomicamente e emite outra; revogação torna também o JWT anterior inválido. A UI mantém tokens apenas em memória: recarregar a página exige novo login. A resposta 401 tenta renovar a sessão uma vez. A tela de login não contém senha padrão.
+```text
+Pessoa → interface ERA (Next.js) ── menu/atalhos ──→ Odoo Community
+             │                                      └→ banco próprio do Odoo
+             └→ API ERA (NestJS) ── JSON-RPC ──→ Odoo (módulos integrados)
+                  └→ PostgreSQL ERA: autenticação, permissões, auditoria
+```
 
-Produtos: controller → caso de uso → repository → transação Prisma. A transação grava produto, auditoria e outbox; falha em qualquer etapa reverte tudo. Preços são strings decimais na API e DECIMAL(18,2) no PostgreSQL. SKU é único por tenant. O cadastro envia versão de evento explícita. A edição (PATCH /products/:id) altera campos e status no mesmo fluxo transacional, registrando antes/depois na auditoria e o evento product.updated.v1.
+A API ERA conversa com o Odoo servidor-a-servidor (JSON-RPC, usuário técnico com chave de API) para os módulos já integrados, começando por Produtos; detalhes em [odoo-integration.md](odoo-integration.md). Não há cópia de cadastros no banco ERA, SSO nem deep-link garantido para os módulos ainda não integrados. Não compartilhar a senha de usuário Odoo com a API ERA. Não conectar diretamente ao PostgreSQL do Odoo nem abrir sua allowlist de rede como substituto de uma API autorizada.
 
-O worker entrega a outbox ao BullMQ com jobId estável e retentativas. publishedAt significa enfileirado, não processado. O consumidor inicial invalida uma chave Redis por tenant, de forma idempotente. Jobs concluídos e com falha são retidos; uma política operacional de retenção e replay deve ser definida antes de escalar. Eventos desconhecidos falham explicitamente.
+A API e o banco ERA são um protótipo independente de administração/autenticação e ainda contêm endpoints de catálogo de demonstração. Esse catálogo não é o cadastro oficial de produtos e não deve ser usado para operar o ERP. Não ampliar módulos duplicados de CRM, vendas ou estoque na API ERA até que a arquitetura de integração ou migração seja deliberadamente definida.
 
-## Entidades e relações
+## Estrutura técnica existente
 
-- Tenant é a raiz de isolamento. Seu próprio id identifica a empresa; não há tenantId autorreferente.
-- Branch pertence a Tenant; código único por empresa.
-- User pertence a Tenant; e-mail único por empresa.
-- Session pertence simultaneamente a Tenant e User. A chave estrangeira composta impede referenciar usuário de outra empresa.
-- Product pertence a Tenant; UUID e SKU têm índices compostos por tenant.
-- AuditLog guarda tenant, usuário, IP, módulo, ação, registro, antes/depois e data.
-- OutboxEvent guarda tenant, tipo versionado, payload e instante de enfileiramento.
+Monorepo modular: `apps/admin` (Next.js), `services/api` (NestJS), `services/worker` (BullMQ), `packages/database` (Prisma) e `packages/shared` (contratos). PDV e portal não foram implementados.
 
-As consultas HTTP são limitadas pelo tenant autenticado. Consulta de login por slug e varredura interna da outbox são exceções documentadas de infraestrutura. Não há acesso global por um papel de superadministrador. RLS ainda não foi configurado: o isolamento depende dos repositórios e da cobertura de testes.
+O navegador chama `/v1` no domínio do painel; um proxy Next encaminha a chamada para a API privada. `API_INTERNAL_HOSTPORT` é interna. A API usa `DATABASE_URL` para o PostgreSQL dedicado à ERA. O Odoo mantém seu próprio serviço e banco, sem dependência de leitura ou escrita pela API ERA.
 
-## Permissões atuais
+## Autenticação e isolamento na API ERA
 
-products:read, products:create, products:update, audit:read, core:read, branches:create, users:read, users:create, users:update e profiles:read. O papel é descritivo; não implica permissões automaticamente. Há nove perfis predefinidos, com permissões limitadas aos módulos já implementados. A criação de usuário aplica as permissões do perfil, sem permitir concessões superiores às do autor. Não é permitido alterar o próprio status. Ainda faltam perfis personalizados e políticas por registro/filial. Usuário inativo perde acesso imediatamente. A suspensão de empresa não é exposta pela API (PATCH /tenant aceita apenas configurações), pois sem superadministrador a empresa não poderia ser reativada.
+O usuário ERA informa o identificador público da empresa. A API valida a conta nesse tenant e cria sessão. JWT contém `tenantId`, `sub` e `sid`, validade de 15 minutos, issuer/audience fixos. Sessão e permissões atuais são consultadas a cada requisição. O corpo HTTP não define o tenant protegido.
 
-## Arquivos e integrações
+Refresh tokens aleatórios são armazenados como SHA-256. Rotação consome a sessão anterior atomicamente; revogação invalida também o JWT anterior. Tokens da interface ficam somente em memória; atualizar a página exige novo login. A resposta 401 tenta renovar uma vez. Não há senha padrão na interface.
 
-ObjectStorage define URLs assinadas e exclusão com escopo de tenant, sem gravar uploads no disco local. O adaptador S3/R2/MinIO ainda não foi implementado. Contratos de eventos permitem consumidores futuros de Fidelizei, Nexo CRM, Type Digital e marketplaces; não constituem integrações prontas.
+Tenant é a raiz de isolamento ERA. Branch, User, Session, Product, AuditLog e OutboxEvent têm escopos/relacionamentos definidos por tenant; consultas HTTP usam o tenant autenticado. RLS do PostgreSQL ainda não foi configurado, portanto o isolamento depende dos repositórios e dos testes. Não existe papel global de superadministrador.
 
-## Operação
+Permissões atuais incluem `products:read`, `products:create`, `audit:read`, `core:read`, permissões de filiais/usuários e `profiles:read`. Há perfis predefinidos limitados às funções implementadas. Ainda faltam perfis personalizados e políticas por filial/registro.
 
-Swagger em /docs somente fora de produção. As rotas são documentadas automaticamente; schemas detalhados de corpos/respostas ainda precisam ser adicionados. Health check verifica PostgreSQL. Limite HTTP básico de 60 requisições/minuto por processo; rate limiting distribuído e configuração do proxy devem ser definidos para múltiplas réplicas. Não confiar em X-Forwarded-For sem configurar proxies conhecidos.
+Esse controle ERA não substitui grupos, regras de registro ou empresas permitidas no Odoo. A separação multiempresa do Odoo ainda precisa ser configurada e testada com usuários e dados de teste diretamente no Odoo antes de uso real. A sessão ERA não concede acesso a dados Odoo.
 
-Pendências antes de produção: Sentry/OpenTelemetry, gestão de segredos, backups e restore, RLS, observabilidade das filas, política de retenção, testes end-to-end. O blueprint Render é um ponto de partida; não foi publicado nem validado na plataforma.
+## Catálogo legado, auditoria e eventos
+
+O protótipo de produtos ERA executa controller → caso de uso → repository → transação Prisma. Produto, auditoria e evento outbox são gravados na mesma transação. Preços usam DECIMAL(18,2); SKU é único por tenant. A tela ERA atual não expõe esse catálogo como fonte operacional: produtos/estoque encaminham para o Inventário Odoo.
+
+O worker de referência publica eventos da outbox no BullMQ, com jobId estável, tentativas e consumidor idempotente inicial. `publishedAt` significa enfileirado, não processado. Retenção, replay e observabilidade ainda requerem política. Contratos para Fidelizei, Nexo CRM, Type Digital e marketplaces não significam integrações prontas.
+
+## Licenças e integrações futuras
+
+Odoo Community é a opção de núcleo aprovada, sem Odoo Enterprise ou serviços pagos da KMEE. Nenhum módulo OCA deve ser considerado aprovado automaticamente: registrar repositório, versão-alvo Odoo, dependências, licença de cada módulo (LGPL/AGPL/outra), manutenção e impacto de segurança antes de instalar.
+
+Uma futura integração deve usar API suportada e credenciais protegidas no Render, com menor privilégio. Definir autenticação, direção e propriedade dos dados, mapeamento multiempresa, idempotência, auditoria, tratamento de falhas e estratégia de migração antes de habilitar escrita.
+
+## Operação e segurança
+
+Swagger em `/docs` somente fora de produção. Schemas detalhados de corpos/respostas ainda precisam ser adicionados. Health check da API verifica PostgreSQL. Rate limiting básico é por processo; rate limit distribuído, proxies confiáveis e escala com múltiplas réplicas ainda não foram definidos.
+
+Pendências para produção: MFA/SSO decidido e testado, regras multiempresa Odoo, RLS ou controles equivalentes, gestão e rotação de segredos, backups com restauração testada, Sentry/OpenTelemetry, observabilidade e política de retenção de filas, testes end-to-end e revisão de dependências.

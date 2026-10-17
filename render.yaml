@@ -1,11 +1,11 @@
-# Serviços pequenos para a primeira implantação; revisar o custo no Render antes de aplicar.
+# Piloto econômico da ERA, isolado dos serviços Odoo; revisar o custo no Render antes de aplicar.
 services:
   - type: pserv
     name: era-api
     runtime: node
     plan: 0.5c-512mb
-    region: oregon
-    branch: main
+    region: virginia
+    branch: feat/era-admin-deploy
     autoDeployTrigger: checksPass
     buildCommand: npm ci --include=dev && npm run db:generate && npm run build -w @era/api
     preDeployCommand: npm run db:migrate && npm run db:seed
@@ -25,12 +25,23 @@ services:
         generateValue: true
       - key: SEED_PASSWORD
         generateValue: true
+      # Integração Odoo: valores definidos no painel Render, nunca no Git.
+      - key: ODOO_URL
+        value: https://era-odoo-poc.onrender.com
+      - key: ODOO_DB
+        sync: false
+      - key: ODOO_LOGIN
+        sync: false
+      - key: ODOO_API_KEY
+        sync: false
+      - key: ODOO_TENANT_COMPANIES
+        sync: false
   - type: web
     name: era-admin
     runtime: node
-    plan: 0.5c-512mb
-    region: oregon
-    branch: main
+    plan: free
+    region: virginia
+    branch: feat/era-admin-deploy
     autoDeployTrigger: checksPass
     buildCommand: npm ci --include=dev && npm run build -w @era/admin
     startCommand: npm run start -w @era/admin
@@ -44,46 +55,18 @@ services:
         value: "1"
       - key: NEXT_PUBLIC_API_URL
         value: ""
+      - key: NEXT_PUBLIC_ODOO_URL
+        value: https://era-odoo-poc.onrender.com
       - key: API_INTERNAL_HOSTPORT
         fromService:
           type: pserv
           name: era-api
           property: hostport
-  - type: worker
-    name: era-worker
-    runtime: node
-    plan: 0.5c-512mb
-    region: oregon
-    branch: main
-    autoDeployTrigger: checksPass
-    buildCommand: npm ci --include=dev && npm run db:generate && npm run build -w @era/worker
-    startCommand: npm run start -w @era/worker
-    envVars:
-      - key: NODE_VERSION
-        value: "22"
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: era-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: era-redis
-          property: connectionString
-  - type: keyvalue
-    name: era-redis
-    plan: 256mb
-    region: oregon
-    ipAllowList: []
-    maxmemoryPolicy: noeviction
-    persistenceMode: journal-snapshot
 databases:
   - name: era-db
     databaseName: era
     user: era
     plan: 0.1c-256mb
-    region: oregon
+    region: virginia
     postgresMajorVersion: "18"
     ipAllowList: []
