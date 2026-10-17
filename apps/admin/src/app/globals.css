@@ -2498,6 +2498,8 @@ input:focus {
   }
   .login-wave {
     height: 40px;
+  }
+}
 
 /* Aplicativos do Odoo dentro da ERA (motor genérico). */
 .run-launcher {
