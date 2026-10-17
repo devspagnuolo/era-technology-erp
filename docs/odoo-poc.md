@@ -24,7 +24,7 @@ O cadastro atual de endpoints é global e somente administradores podem alterá-
 
 ## Usuário técnico da API ERA
 
-A API ERA lê e grava no Odoo com o usuário `era-integracao` (grupos Usuário interno e Administrador de Inventário, Vendas e Compras quando esses módulos estão instalados, apenas na empresa principal). Com `ERA_PROVISION_INTEGRATION=true` e `ERA_INTEGRATION_PASSWORD` definidos no serviço Odoo, cada deploy cria ou atualiza esse usuário, mantendo os acessos em dia quando um módulo novo é instalado. A mesma senha vai em `ODOO_API_KEY` no `era-api`. Para instalar um módulo, inclua-o em `ODOO_INIT_MODULES` com `ODOO_RUN_INIT=true` em um deploy.
+A API ERA lê e grava no Odoo com o usuário `era-integracao` (grupos Usuário interno e Administrador de Inventário, Vendas, Compras, Faturamento e Fiscal quando esses módulos estão instalados, apenas na empresa principal). Com `ERA_PROVISION_INTEGRATION=true` e `ERA_INTEGRATION_PASSWORD` definidos no serviço Odoo, cada deploy cria ou atualiza esse usuário, mantendo os acessos em dia quando um módulo novo é instalado. A mesma senha vai em `ODOO_API_KEY` no `era-api`. Para instalar um módulo, inclua-o em `ODOO_INIT_MODULES` com `ODOO_RUN_INIT=true` em um deploy.
 
 ## Uso local
 
