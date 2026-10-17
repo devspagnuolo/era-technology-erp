@@ -9,7 +9,7 @@
 - Consulta e cadastro de filiais.
 - Consulta e cadastro de usuários, perfis predefinidos, ativação/desativação e revogação de sessões.
 - Consulta de auditoria.
-- Criação e consulta paginada de produtos com busca, validação, unicidade, auditoria e evento transacional.
+- Criação, edição, inativação e consulta paginada de produtos com busca, validação, unicidade, auditoria e evento transacional.
 - Interface administrativa conectada à API: login, produtos, filiais, usuários, perfis e auditoria.
 - Relay da outbox e consumidor idempotente inicial.
 
@@ -23,7 +23,7 @@
 
 ## Sequência funcional
 
-2. Cadastros: completar produtos (editar, inativar, categorias, marcas, unidades e preços), clientes, fornecedores e transportadoras.
+2. Cadastros: completar produtos (categorias, marcas, unidades e preços), clientes, fornecedores e transportadoras.
 3. Estoque: depósitos, ledger, saldos, custos, reservas, transferências e inventários; concorrência e idempotência transacionais.
 4. Compras: solicitações → cotações → pedido → recebimento → entrada; importação XML.
 5. Vendas: orçamento → pedido → venda → financeiro/estoque; trocas e devoluções.

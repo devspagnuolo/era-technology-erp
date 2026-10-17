@@ -3,11 +3,14 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Param,
   Query,
   Req,
   Inject,
   Injectable,
   ConflictException,
+  NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -25,6 +28,24 @@ export const productInput = z.object({
       "Informe um preço positivo com até duas casas decimais",
     ),
 });
+export const updateProductInput = productInput
+  .partial()
+  .extend({ active: z.boolean().optional() })
+  .strict()
+  .refine(
+    (value) => Object.values(value).some((v) => v !== undefined),
+    "Informe ao menos um campo para alterar",
+  );
+type ProductRecord = Prisma.ProductGetPayload<object>;
+const serialize = (product: ProductRecord) => ({
+  ...product,
+  salePrice: product.salePrice.toString(),
+  createdAt: product.createdAt.toISOString(),
+  updatedAt: product.updatedAt.toISOString(),
+});
+const skuConflict = (error: unknown) =>
+  error instanceof Prisma.PrismaClientKnownRequestError &&
+  error.code === "P2002";
 const searchInput = z.object({
   q: z.string().max(100).default(""),
   page: z.coerce.number().int().min(1).default(1),
@@ -67,12 +88,7 @@ export class ProductRepository {
       const product = await tx.product.create({
         data: { ...data, ...tenantScope(tenantId) },
       });
-      const after = {
-        ...product,
-        salePrice: product.salePrice.toString(),
-        createdAt: product.createdAt.toISOString(),
-        updatedAt: product.updatedAt.toISOString(),
-      };
+      const after = serialize(product);
       await tx.auditLog.create({
         data: {
           tenantId,
@@ -86,6 +102,52 @@ export class ProductRepository {
       });
       await tx.outboxEvent.create({
         data: { tenantId, type: "product.created.v1", payload: after },
+      });
+      return product;
+    });
+  }
+  update(
+    tenantId: string,
+    actorId: string,
+    ip: string,
+    id: string,
+    data: z.infer<typeof updateProductInput>,
+  ) {
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.product.findUnique({
+        where: { tenantId_id: { tenantId, id } },
+      });
+      if (!current) throw new NotFoundException("Produto não encontrado");
+      const product = await tx.product.update({
+        where: { tenantId_id: { tenantId, id } },
+        data,
+      });
+      const before = serialize(current);
+      const after = serialize(product);
+      const action =
+        data.active === undefined || data.active === current.active
+          ? "update"
+          : data.active
+            ? "activate"
+            : "deactivate";
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorId,
+          ip,
+          module: "products",
+          action,
+          recordId: product.id,
+          before,
+          after,
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          tenantId,
+          type: "product.updated.v1",
+          payload: { before, after },
+        },
       });
       return product;
     });
@@ -106,10 +168,29 @@ export class CreateProduct {
         input,
       );
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      )
+      if (skuConflict(error))
+        throw new ConflictException("SKU já cadastrado nesta empresa");
+      throw error;
+    }
+  }
+}
+@Injectable()
+export class UpdateProduct {
+  constructor(
+    @Inject(ProductRepository) private repository: ProductRepository,
+  ) {}
+  async execute(req: AuthRequest, id: string, raw: unknown) {
+    const input = parse(updateProductInput, raw);
+    try {
+      return await this.repository.update(
+        req.principal.tenantId,
+        req.principal.userId,
+        req.ip ?? "unknown",
+        id,
+        input,
+      );
+    } catch (error) {
+      if (skuConflict(error))
         throw new ConflictException("SKU já cadastrado nesta empresa");
       throw error;
     }
@@ -120,6 +201,7 @@ export class ProductsController {
   constructor(
     @Inject(ProductRepository) private repository: ProductRepository,
     @Inject(CreateProduct) private createProduct: CreateProduct,
+    @Inject(UpdateProduct) private updateProduct: UpdateProduct,
   ) {}
   @Get() @Permission("products:read") list(
     @Req() req: AuthRequest,
@@ -132,5 +214,12 @@ export class ProductsController {
     @Body() body: unknown,
   ) {
     return this.createProduct.execute(req, body);
+  }
+  @Patch(":id") @Permission("products:update") update(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.updateProduct.execute(req, id, body);
   }
 }

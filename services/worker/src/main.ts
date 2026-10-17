@@ -12,7 +12,7 @@ const worker = new Worker(
   async (job) => {
     const { tenantId, type } = job.data as { tenantId: string; type: string };
     if (!tenantId) throw new Error("Evento sem tenant");
-    if (type !== "product.created.v1")
+    if (type !== "product.created.v1" && type !== "product.updated.v1")
       throw new Error("Evento sem consumidor: " + type);
     // DEL é idempotente: uma nova entrega não duplica efeitos de negócio.
     await connection.del("tenant:" + tenantId + ":catalog-summary");
