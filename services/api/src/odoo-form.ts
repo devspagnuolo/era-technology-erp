@@ -226,13 +226,30 @@ export function buildSchema(
     }
     const existing = fields[name];
     if (existing?.hidden) delete fields[name];
-    else if (existing) {
+    if (existing && !existing.hidden) {
       // Campo repetido com condições diferentes: visível se qualquer um estiver.
       existing.invisibleIf = andExpr(existing.invisibleIf, def.invisibleIf);
-      return;
+    } else {
+      fields[name] = def;
+      order.push({ section, name });
     }
-    fields[name] = def;
-    order.push({ section, name });
+    // Intervalo de datas (daterange): o Odoo mostra o fim junto do início,
+    // embora o campo final fique oculto na tela; na ERA ele vira um campo
+    // logo depois do início, com as mesmas condições desta ocorrência.
+    const end = endDateField(attrs);
+    const endInfo = end ? meta[end] : undefined;
+    if (!end || !endInfo || hidden.has(end)) return;
+    if (fields[end] && !fields[end].hidden) return;
+    const endAttrs: Record<string, string> = {
+      ...attrs,
+      name: end,
+      string: endInfo.string,
+    };
+    delete endAttrs.widget;
+    delete endAttrs.options;
+    fields[end] = fieldDef(endInfo, endAttrs, section, group, scopeInvisible);
+    const at = order.findIndex((o) => o.name === name);
+    order.splice(at + 1, 0, { section: order[at].section, name: end });
   };
   // Campos sempre ocultos: só os simples (sem listas nem arquivos).
   function keepHidden(attrs: Record<string, string>) {
@@ -272,6 +289,13 @@ export function buildSchema(
     fields,
     deps: dependencies(fields, meta),
   };
+}
+
+function endDateField(attrs: Record<string, string>) {
+  if (attrs.widget !== "daterange") return undefined;
+  return /['"]end_date_field['"]\s*:\s*['"](\w+)['"]/.exec(
+    attrs.options ?? "",
+  )?.[1];
 }
 
 function stages(node: ArchNode, meta: Record<string, Meta>): ArchNode[] {
@@ -599,6 +623,8 @@ export function toOdooValues(
     const def = fields[name];
     if (!def) throw new BadRequestException("Campo não permitido: " + name);
     if (isReadonly(def, scope)) continue;
+    if (!parent && missing(def, value, scope))
+      throw new BadRequestException("Preencha o campo " + def.label);
     if (def.type === "one2many") {
       out[name] = rowsToCommands(def, value, current[name], refs, merged);
       continue;
@@ -615,6 +641,27 @@ export function toOdooValues(
     out[name] = converted;
   }
   return out;
+}
+
+// Campo obrigatório na tela do Odoo enviado vazio: o Odoo web não deixa
+// salvar, e o Odoo nem sempre impõe isso no banco (ex.: categoria da despesa).
+function missing(def: FieldDef, value: unknown, scope: Values) {
+  if (def.hidden || def.type === "boolean" || def.type === "one2many")
+    return false;
+  const known = (expr?: string) =>
+    !!expr && names(expr).every((name) => name in scope);
+  const required =
+    def.required || (known(def.requiredIf) && check(def.requiredIf!, scope));
+  if (!required) return false;
+  if (known(def.invisibleIf) && check(def.invisibleIf!, scope)) return false;
+  if (def.invisibleIf && !known(def.invisibleIf)) return false;
+  return (
+    value === null ||
+    value === undefined ||
+    value === false ||
+    (typeof value === "string" && !value.trim()) ||
+    (Array.isArray(value) && !value.length)
+  );
 }
 
 function rowsToCommands(

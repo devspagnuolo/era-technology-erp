@@ -51,6 +51,9 @@ import { OdooCrm } from "../components/odoo-crm";
 import { OdooManufacturing } from "../components/odoo-manufacturing";
 import { OdooProjects } from "../components/odoo-projects";
 import { OdooEmployees } from "../components/odoo-employees";
+import { OdooMaintenance } from "../components/odoo-maintenance";
+import { OdooTimeOff } from "../components/odoo-time-off";
+import { OdooExpenses } from "../components/odoo-expenses";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -223,6 +226,9 @@ function Catalog() {
     manufacturing: "Fabricação",
     projects: "Projetos",
     employees: "Funcionários",
+    maintenance: "Manutenção",
+    timeoff: "Folga",
+    expenses: "Despesas",
     audit: "Auditoria",
     users: "Usuários",
     branches: "Filiais",
@@ -241,6 +247,9 @@ function Catalog() {
     manufacturing: "manufacturing:read",
     projects: "projects:read",
     employees: "employees:read",
+    maintenance: "maintenance:read",
+    timeoff: "timeoff:read",
+    expenses: "expenses:read",
   };
   const views = (Object.keys(viewPermissions) as EraView[]).filter((v) =>
     permissions.includes(viewPermissions[v]!),
@@ -267,13 +276,13 @@ function Catalog() {
       { label: "Estoque", icon: <Warehouse size={16} />, view: "inventory", permission: "inventory:read" },
       { label: "Compras", icon: <Truck size={16} />, view: "purchases", permission: "purchases:read" },
       { label: "Fabricação", icon: <Factory size={16} />, view: "manufacturing", permission: "manufacturing:read" },
-      { label: "Manutenção", icon: <Wrench size={16} /> },
+      { label: "Manutenção", icon: <Wrench size={16} />, view: "maintenance", permission: "maintenance:read" },
       { label: "Projetos", icon: <FolderKanban size={16} />, view: "projects", permission: "projects:read" },
     ] },
     { key: "people", label: "Pessoas", icon: <IdCard size={17} />, items: [
       { label: "Funcionários", icon: <IdCard size={16} />, view: "employees", permission: "employees:read" },
-      { label: "Folgas e ausências", icon: <CalendarDays size={16} /> },
-      { label: "Despesas", icon: <ReceiptText size={16} /> },
+      { label: "Folgas e ausências", icon: <CalendarDays size={16} />, view: "timeoff", permission: "timeoff:read" },
+      { label: "Despesas", icon: <ReceiptText size={16} />, view: "expenses", permission: "expenses:read" },
     ] },
     { key: "productivity", label: "Produtividade", icon: <ChartNoAxesCombined size={17} />, items: [
       { label: "Mensagens", icon: <MessageSquare size={16} /> },
@@ -412,6 +421,12 @@ function Catalog() {
             <OdooProjects permissions={permissions} odooUrl={odooEntryUrl} />
           ) : view === "employees" ? (
             <OdooEmployees permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "maintenance" ? (
+            <OdooMaintenance permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "timeoff" ? (
+            <OdooTimeOff permissions={permissions} odooUrl={odooEntryUrl} />
+          ) : view === "expenses" ? (
+            <OdooExpenses permissions={permissions} odooUrl={odooEntryUrl} />
           ) : view === "invoices" ? (
             <OdooInvoices
               permissions={user.data?.permissions ?? []}

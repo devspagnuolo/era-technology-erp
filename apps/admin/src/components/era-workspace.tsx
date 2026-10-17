@@ -37,6 +37,9 @@ export type EraView =
   | "manufacturing"
   | "projects"
   | "employees"
+  | "maintenance"
+  | "timeoff"
+  | "expenses"
   | "audit"
   | "users"
   | "branches"
@@ -150,6 +153,7 @@ export const ERA_MODULES: EraModule[] = [
     group: "Operação",
     description: "Equipamentos e solicitações de manutenção.",
     icon: Wrench,
+    view: "maintenance",
   },
   {
     name: "Funcionários",
@@ -163,12 +167,14 @@ export const ERA_MODULES: EraModule[] = [
     group: "Equipe",
     description: "Solicitações e calendário de ausências.",
     icon: CalendarDays,
+    view: "timeoff",
   },
   {
     name: "Despesas",
     group: "Equipe",
     description: "Registro e revisão de despesas da equipe.",
     icon: ReceiptText,
+    view: "expenses",
   },
   {
     name: "Aplicativos",

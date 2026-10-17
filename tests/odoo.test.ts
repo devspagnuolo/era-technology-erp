@@ -18,6 +18,7 @@ import { SALES } from "../services/api/src/odoo-sales";
 import { PURCHASES } from "../services/api/src/odoo-purchases";
 import { leadOutcome } from "../services/api/src/odoo-crm";
 import { productionStage } from "../services/api/src/odoo-manufacturing";
+import { leaveStage } from "../services/api/src/odoo-time-off";
 import { parseArch } from "../services/api/src/odoo-arch";
 import {
   buildSchema,
@@ -340,4 +341,76 @@ test("crm e fabricação: resultado da oportunidade e etapa da produção", () =
   assert.equal(productionStage("to_close"), "progress");
   assert.equal(productionStage("cancel"), "cancelled");
   assert.equal(productionStage("confirmed"), "confirmed");
+});
+
+test("período (daterange): a data final aparece logo após a inicial", () => {
+  const arch = `<form><sheet>
+    <field name="date_from" widget="daterange" options="{'end_date_field': 'date_to'}"/>
+    <field name="date_to" invisible="1"/>
+    <field name="name"/>
+  </sheet></form>`;
+  const meta = (name: string, type: string) => ({ name, type, string: name });
+  const schema = buildSchema(
+    "x.leave",
+    parseArch(arch),
+    {
+      "x.leave": {
+        fields: {
+          date_from: meta("date_from", "date"),
+          date_to: meta("date_to", "date"),
+          name: meta("name", "char"),
+        },
+      },
+    },
+    {},
+  );
+  assert.deepEqual(schema.sections[0].fields, ["date_from", "date_to", "name"]);
+  assert.equal(schema.fields.date_to.hidden, undefined);
+});
+
+test("folga: situação do Odoo vira etapa da ERA", () => {
+  assert.equal(leaveStage("confirm"), "pending");
+  assert.equal(leaveStage("validate1"), "pending");
+  assert.equal(leaveStage("validate"), "approved");
+  assert.equal(leaveStage("refuse"), "refused");
+  assert.equal(leaveStage("cancel"), "refused");
+});
+
+test("campo obrigatório da tela enviado vazio é recusado", () => {
+  const def = (name: string, extra: object = {}) => ({
+    name,
+    label: name,
+    type: "many2one",
+    required: false,
+    readonly: false,
+    section: "Geral",
+    ...extra,
+  });
+  const fields = {
+    product_id: def("product_id", { required: true }),
+    sheet_id: def("sheet_id", { required: true, hidden: true }),
+    partner_id: def("partner_id", { requiredIf: "kind == 'b'" }),
+    kind: def("kind", {
+      type: "selection",
+      selection: [
+        ["a", "A"],
+        ["b", "B"],
+      ],
+    }),
+  };
+  const save = (input: Record<string, unknown>) =>
+    toOdooValues(fields, input, {}, new Map());
+  assert.throws(
+    () => save({ product_id: null }),
+    /Preencha o campo product_id/,
+  );
+  assert.throws(
+    () => save({ kind: "b", partner_id: false }),
+    /Preencha o campo partner_id/,
+  );
+  assert.deepEqual(save({ kind: "a", partner_id: false }), {
+    kind: "a",
+    partner_id: false,
+  });
+  assert.deepEqual(save({ sheet_id: false }), { sheet_id: false });
 });

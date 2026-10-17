@@ -13,6 +13,9 @@ export type RecordConfig = {
   form?: FormOptions;
   // Restrições fixas de leitura (além da empresa), ex.: só contatos principais.
   domain?: Domain;
+  // Campo que prende o registro à empresa (padrão company_id) e se a ERA o
+  // grava ao criar; ex.: a folga segue a empresa do funcionário.
+  company?: { field: string; write: boolean };
   // Regras do módulo antes de gravar (unicidade, papéis etc.).
   prepare?: (ctx: {
     companyId: number;
@@ -38,7 +41,7 @@ export class OdooRecords {
   private domain(companyId: number, id: number): Domain {
     return [
       ["id", "=", id],
-      ["company_id", "=", companyId],
+      [companyField(this.config), "=", companyId],
       ...(this.config.domain ?? []),
     ];
   }
@@ -96,7 +99,13 @@ export class OdooRecords {
       companyId,
       this.config.model,
       "create",
-      [[{ ...values, company_id: companyId }]],
+      [
+        [
+          this.config.company?.write === false
+            ? values
+            : { ...values, company_id: companyId },
+        ],
+      ],
     );
     const after = await this.find(companyId, schema, id);
     await this.scope.audit(
@@ -168,6 +177,9 @@ export class OdooRecords {
     return row.active;
   }
 }
+
+export const companyField = (config: RecordConfig) =>
+  config.company?.field ?? "company_id";
 
 // Imagens não vão para a auditoria; apenas a indicação de que existem.
 export function forAudit(record: Values) {
