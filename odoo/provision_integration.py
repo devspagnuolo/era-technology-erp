@@ -16,6 +16,9 @@ for xmlid, area in [
     ("mrp.group_mrp_manager", "Fabricação"),
     ("project.group_project_manager", "Projeto"),
     ("hr.group_hr_manager", "Funcionários"),
+    ("maintenance.group_equipment_manager", "Manutenção"),
+    ("hr_holidays.group_hr_holidays_manager", "Folga"),
+    ("hr_expense.group_hr_expense_manager", "Despesas"),
 ]:
     group = env.ref(xmlid, raise_if_not_found=False)
     if group:
