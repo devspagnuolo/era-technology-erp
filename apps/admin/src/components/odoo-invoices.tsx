@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -85,10 +84,8 @@ function titleOf(invoice: OdooInvoice) {
 
 export function OdooInvoices({
   permissions,
-  odooUrl,
 }: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const [side, setSide] = useState<Side>("customer");
   const [q, setQ] = useState("");
@@ -258,23 +255,6 @@ export function OdooInvoices({
                               >
                                 Abrir
                               </Button>
-                              <a
-                                className="row-link"
-                                aria-label={
-                                  "Abrir " +
-                                  (invoice.number ?? "rascunho") +
-                                  " no Odoo"
-                                }
-                                href={
-                                  odooUrl +
-                                  "/action-account.action_move_out_invoice_type/" +
-                                  invoice.id
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ArrowUpRight size={16} />
-                              </a>
                             </div>
                           </td>
                         </tr>

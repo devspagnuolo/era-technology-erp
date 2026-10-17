@@ -83,3 +83,29 @@ export async function api<T>(
   }
   return response.json();
 }
+
+// Arquivo gerado pela API (ex.: PDF de relatório do Odoo), com a sessão atual.
+export async function apiFile(path: string): Promise<Blob> {
+  const request = () =>
+    fetch(base + "/v1/" + path, {
+      headers: {
+        Authorization:
+          "Bearer " + (useSession.getState().session?.accessToken ?? ""),
+      },
+    });
+  let response = await request();
+  if (response.status === 401) {
+    // Renova a sessão pelo fluxo normal e tenta de novo.
+    await api("auth/me").catch(() => null);
+    response = await request();
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      typeof body.message === "string"
+        ? body.message
+        : "Não foi possível gerar o arquivo",
+    );
+  }
+  return response.blob();
+}

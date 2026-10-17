@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import {
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
   ConflictException,
   UnprocessableEntityException,
@@ -30,6 +31,7 @@ import {
 } from "../services/api/src/odoo-expenses";
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
+import { OdooRuntime } from "../services/api/src/odoo-runtime";
 import { OdooStatusController } from "../services/api/src/odoo-status";
 import { Database } from "../services/api/src/database";
 import { AuthRequest } from "../services/api/src/auth";
@@ -1075,5 +1077,96 @@ test(
       () => expenseReports.form(as(b), report.id),
       NotFoundException,
     );
+  },
+);
+
+test(
+  "aplicativos genéricos: menus, lista da ação, botões, assistente de pagamento e loja",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const [a] = Object.keys(companies);
+    const audits: Array<{ action: string; recordId: string }> = [];
+    const scope = scopeFor(fakeDb(audits), companies);
+    const { contacts, invoices } = services(scope);
+    const run = new OdooRuntime(scope, new OdooForms(scope.odoo));
+    const req = {
+      ...as(a),
+      principal: {
+        tenantId: a,
+        userId: "tester",
+        sessionId: "s",
+        permissions: ["odoo:read", "odoo:write"],
+      },
+    } as AuthRequest;
+    const tag = randomUUID().slice(0, 8);
+
+    const menus = await run.menus(req);
+    const finance = menus.find((m) => m.xmlid === "account.menu_finance");
+    assert.ok(finance, "menu de faturamento");
+
+    const customer = await contacts.records.create(as(a), {
+      values: { name: "Cliente genérico " + tag },
+    });
+    const created = await invoices.records.create(as(a), {
+      values: {
+        partner_id: customer.id,
+        ref: "GEN-" + tag,
+        invoice_line_ids: [
+          { name: "Serviço " + tag, quantity: 1, price_unit: 80, tax_ids: [] },
+        ],
+      },
+      extra: { move_type: "out_invoice" },
+    });
+    const id = created.id as number;
+
+    const list = await run.list(req, {
+      model: "account.move",
+      q: "GEN-" + tag,
+      domain: JSON.stringify([["move_type", "=", "out_invoice"]]),
+    });
+    assert.ok(list.rows.some((r) => r.id === id));
+    assert.ok(list.columns.length > 0);
+
+    const form = await run.form(req, "account.move", {}, id);
+    const names = (form.schema.buttons ?? []).map((b) => b.name);
+    assert.ok(names.includes("action_post"), names.join(","));
+    await assert.rejects(
+      () => run.button(req, "account.move", {}, id, { name: "unlink_all" }),
+      UnprocessableEntityException,
+    );
+    await run.button(req, "account.move", {}, id, { name: "action_post" });
+    const pay = await run.button(req, "account.move", {}, id, {
+      name: "action_register_payment",
+    });
+    assert.equal(pay.kind, "window");
+    if (pay.kind !== "window") return;
+    assert.equal(pay.target, "new");
+    const key = { view: pay.views.form, context: pay.context };
+    const wizard = await run.form(req, pay.model, key);
+    await run.wizard(req, pay.model, key, {
+      name: "action_create_payments",
+      values: wizard.values,
+    });
+    const [paid] = await scope.odoo.execute<Array<{ payment_state: string }>>(
+      companies[a],
+      "account.move",
+      "read",
+      [[id], ["payment_state"]],
+    );
+    assert.ok(["paid", "in_payment"].includes(paid.payment_state));
+    assert.ok(audits.some((e) => e.action.includes("action_post")));
+
+    const messages = await run.messages(req, "account.move", id);
+    assert.ok(Array.isArray(messages));
+
+    // Modelos técnicos e configurações globais ficam fechados.
+    await assert.rejects(() => run.form(req, "res.users", {}), ForbiddenException);
+    await assert.rejects(
+      () => run.form(req, "res.config.settings", {}),
+      ForbiddenException,
+    );
+    const apps = await run.apps(req, { filter: "installed" });
+    assert.ok(apps.some((m) => m.name === "account"));
   },
 );

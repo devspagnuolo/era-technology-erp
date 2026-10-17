@@ -74,12 +74,10 @@ const EMPLOYEES: AppKind<Employee> = {
     },
   ],
   titleOf: (e) => e.name,
-  odooPath: "/odoo/employees",
 };
 
 export function OdooEmployees(props: {
   permissions: string[];
-  odooUrl: string;
 }) {
   return <OdooApp kind={EMPLOYEES} {...props} />;
 }

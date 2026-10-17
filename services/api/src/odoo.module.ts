@@ -35,6 +35,7 @@ import {
   OdooExpenses,
   OdooExpensesController,
 } from "./odoo-expenses";
+import { OdooRuntime, OdooRuntimeController } from "./odoo-runtime";
 @Module({
   imports: [DatabaseModule],
   controllers: [
@@ -55,6 +56,7 @@ import {
     OdooTimeOffController,
     OdooExpensesController,
     OdooExpenseReportsController,
+    OdooRuntimeController,
   ],
   providers: [
     { provide: OdooClient, useFactory: () => new OdooClient(readOdooConfig()) },
@@ -76,6 +78,7 @@ import {
     OdooTimeOff,
     OdooExpenses,
     OdooExpenseReports,
+    OdooRuntime,
   ],
 })
 export class OdooModule {}

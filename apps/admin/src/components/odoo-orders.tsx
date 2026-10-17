@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -57,7 +56,6 @@ export type OrderKind = {
   emptyText: string;
   loading: string;
   scopeNote: string;
-  odooAction: string; // ação do Odoo para o link "abrir no Odoo"
   icon: typeof ShoppingCart;
 };
 
@@ -87,11 +85,9 @@ const dateLabel = (value: string) =>
 export function OdooOrders({
   kind,
   permissions,
-  odooUrl,
 }: {
   kind: OrderKind;
   permissions: string[];
-  odooUrl: string;
 }) {
   const Icon = kind.icon;
   const queryName = "odoo-" + kind.permission;
@@ -220,17 +216,6 @@ export function OdooOrders({
                               >
                                 Abrir
                               </Button>
-                              <a
-                                className="row-link"
-                                aria-label={"Abrir " + s.number + " no Odoo"}
-                                href={
-                                  odooUrl + "/" + kind.odooAction + "/" + s.id
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ArrowUpRight size={16} />
-                              </a>
                             </div>
                           </td>
                         </tr>
@@ -449,7 +434,6 @@ export const SALES: OrderKind = {
   emptyText: "Crie o primeiro orçamento; ele será gravado no Odoo.",
   loading: "Buscando vendas no Odoo…",
   scopeNote: "Somente vendas da empresa vinculada.",
-  odooAction: "action-sale.action_quotations_with_onboarding",
   icon: ShoppingCart,
 };
 
@@ -485,6 +469,5 @@ export const PURCHASES: OrderKind = {
     "Crie a primeira solicitação de cotação; ela será gravada no Odoo.",
   loading: "Buscando compras no Odoo…",
   scopeNote: "Somente compras da empresa vinculada.",
-  odooAction: "action-purchase.purchase_rfq",
   icon: Truck,
 };

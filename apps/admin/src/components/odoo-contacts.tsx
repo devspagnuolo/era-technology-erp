@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   ContactRound,
@@ -43,10 +42,8 @@ const roleLabel = (c: OdooContact) =>
 
 export function OdooContacts({
   permissions,
-  odooUrl,
 }: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const cache = useQueryClient();
   const [q, setQ] = useState("");
@@ -226,19 +223,6 @@ export function OdooContacts({
                                   </Button>
                                 </>
                               )}
-                              <a
-                                className="row-link"
-                                aria-label={"Abrir " + c.name + " no Odoo"}
-                                href={
-                                  odooUrl +
-                                  "/action-base.action_partner_form/" +
-                                  c.id
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ArrowUpRight size={16} />
-                              </a>
                             </div>
                           </td>
                         </tr>

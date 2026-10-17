@@ -107,7 +107,6 @@ const EXPENSES: AppKind<Expense> = {
     },
   ],
   titleOf: (e) => e.name,
-  odooPath: "/odoo/expenses",
 };
 
 const REPORTS: AppKind<Report> = {
@@ -187,12 +186,10 @@ const REPORTS: AppKind<Report> = {
     },
   ],
   titleOf: (r) => r.name,
-  odooPath: "/odoo/expense-reports",
 };
 
 export function OdooExpenses(props: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const [tab, setTab] = useState<"expenses" | "reports">("expenses");
   return (

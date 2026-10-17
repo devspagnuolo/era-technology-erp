@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   Injectable,
+  NotFoundException,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from "@nestjs/common";
@@ -84,22 +85,85 @@ export class OdooClient {
     method: string,
     args: unknown[],
     kwargs: Record<string, unknown> = {},
+    timeoutMs?: number,
   ): Promise<T> {
     const { db, apiKey } = this.settings();
     const uid = await this.login();
+    // A empresa vem sempre por último: nenhum contexto a substitui.
     const context = {
-      allowed_company_ids: [companyId],
       ...(kwargs.context as object | undefined),
+      allowed_company_ids: [companyId],
     };
-    return this.rpc<T>("object", "execute_kw", [
-      db,
-      uid,
-      apiKey,
-      model,
-      method,
-      args,
-      { ...kwargs, context },
-    ]);
+    return this.rpc<T>(
+      "object",
+      "execute_kw",
+      [db, uid, apiKey, model, method, args, { ...kwargs, context }],
+      timeoutMs,
+    );
+  }
+
+  userId() {
+    return this.login();
+  }
+
+  // Arquivos que o Odoo só entrega por sessão web (PDF de relatórios).
+  async download(path: string) {
+    const { url, timeoutMs } = this.settings();
+    const fetchFile = async (cookie: string) =>
+      fetch(url + path, {
+        headers: { Cookie: cookie },
+        redirect: "manual",
+        signal: AbortSignal.timeout(timeoutMs * 4),
+      });
+    let cookie = await this.webSession();
+    let response = await fetchFile(cookie);
+    if (response.status !== 200) {
+      this.session = null;
+      cookie = await this.webSession();
+      response = await fetchFile(cookie);
+    }
+    const type = response.headers.get("content-type") ?? "";
+    if (response.status !== 200 || type.includes("text/html"))
+      throw new BadGatewayException("O Odoo não gerou o arquivo");
+    return { type, data: Buffer.from(await response.arrayBuffer()) };
+  }
+
+  // Arquivos estáticos públicos do Odoo (ícones dos aplicativos).
+  async staticFile(path: string) {
+    const { url, timeoutMs } = this.settings();
+    const response = await fetch(url + path, {
+      signal: AbortSignal.timeout(timeoutMs),
+    }).catch(() => null);
+    if (!response?.ok) throw new NotFoundException("Arquivo não encontrado");
+    return {
+      type: response.headers.get("content-type") ?? "application/octet-stream",
+      data: Buffer.from(await response.arrayBuffer()),
+    };
+  }
+
+  private session: Promise<string> | null = null;
+  private webSession() {
+    const { url, db, login, apiKey, timeoutMs } = this.settings();
+    this.session ??= fetch(url + "/web/session/authenticate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        method: "call",
+        params: { db, login, password: process.env.ODOO_PASSWORD || apiKey },
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    }).then(async (response) => {
+      const body = (await response.json()) as { error?: unknown };
+      const cookie = response.headers.get("set-cookie")?.split(";")[0];
+      if (body.error || !cookie)
+        throw new ServiceUnavailableException(
+          "O Odoo não liberou a geração de arquivos para a integração",
+        );
+      return cookie;
+    });
+    this.session.catch(() => (this.session = null));
+    return this.session;
   }
 
   private settings() {
@@ -126,7 +190,12 @@ export class OdooClient {
     return this.uid;
   }
 
-  private async rpc<T>(service: string, method: string, args: unknown[]) {
+  private async rpc<T>(
+    service: string,
+    method: string,
+    args: unknown[],
+    timeout?: number,
+  ) {
     const { url, timeoutMs } = this.settings();
     let body: { result?: T; error?: RpcError };
     try {
@@ -138,7 +207,7 @@ export class OdooClient {
           method: "call",
           params: { service, method, args },
         }),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(timeout ?? timeoutMs),
       });
       if (!response.ok) throw new Error("HTTP " + response.status);
       body = await response.json();

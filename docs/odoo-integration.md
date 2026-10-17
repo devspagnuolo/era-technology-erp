@@ -75,6 +75,26 @@ O teste `tests/odoo.integration.test.ts` roda contra um Odoo de teste quando `TE
 - Produtos e contatos compartilhados entre empresas (sem empresa no Odoo) não aparecem na ERA; endereços filhos de um contato também não.
 - O catálogo antigo da API ERA (`/v1/products`, PostgreSQL ERA) continua no código como protótipo e não é usado pela tela.
 
-## Próximos módulos
+## Todos os aplicativos (motor genérico)
 
-Seguir o mesmo padrão (configuração em `odoo-app.ts` com o formulário completo + tela ERA em `odoo-app.tsx` + permissões + auditoria + teste contra Odoo) para os demais aplicativos instalados no Odoo. A central de módulos abre na ERA os módulos que já têm tela e leva ao Odoo os demais. Ficam no Odoo por enquanto: Calendário (eventos não têm empresa, então não dá para separar por empresa ERA), Lista de tarefas (é pessoal de cada usuário do Odoo, e a ERA grava como usuário técnico) e Fiscal/NF-e (depende de certificado e configuração fiscal da empresa).
+Além das telas próprias acima, a ERA abre **qualquer aplicativo instalado no Odoo** sem que o usuário entre no Odoo. Código: `services/api/src/odoo-runtime.ts` (API em `/v1/odoo/run/...`), `services/api/src/odoo-pyval.ts` (avalia domínios e contextos que o Odoo guarda como texto Python) e `apps/admin/src/components/odoo-run.tsx` (tela).
+
+- **Menus**: `GET /v1/odoo/run/menus` lê os menus do Odoo (`ir.ui.menu.load_menus`) e a ERA desenha a grade de aplicativos e, dentro de cada um, os menus e submenus do Odoo.
+- **Listas**: `GET /v1/odoo/run/action/:id` traduz a ação do menu; `GET /v1/odoo/run/list?action=&q=&filters=&page=` usa a lista e a busca do próprio Odoo (colunas, filtros, filtros padrão da ação).
+- **Formulários, botões e assistentes**: `GET|POST /v1/odoo/run/m/<modelo>/<chave>/...` (formulário completo, recálculo, opções de campo, criar, editar, botões do cabeçalho, assistentes, arquivar, excluir, histórico e mensagens). Só botões que o formulário do Odoo exibe podem ser acionados.
+- **Relatórios em PDF**: `GET /v1/odoo/run/report/<relatório>?ids=`; a API abre uma sessão web no Odoo com `ODOO_PASSWORD` (se definida) ou com a chave de API.
+- **Loja de aplicativos**: `GET /v1/odoo/run/apps` e `POST /v1/odoo/run/apps/:id/install|upgrade|uninstall`.
+- **Configurações**: o formulário `res.config.settings` de todos os aplicativos, salvo pela ERA.
+
+Permissões: `odoo:read` (ver), `odoo:write` (criar, editar, botões, assistentes), `odoo:admin` (loja de aplicativos e configurações). Modelos técnicos (`ir.*`, `res.users`, `res.groups` etc.) ficam bloqueados: usuários e perfis são da ERA. O navegador nunca escolhe empresa, usuário ou idioma pelo contexto. Cada gravação e botão vai para a auditoria ERA (`odoo.run`).
+
+O usuário técnico precisa do grupo *Configurações* (`base.group_system`) para ler menus e ações e instalar aplicativos; `odoo/provision_integration.py` concede.
+
+Atenção:
+
+- Instalar, remover aplicativos e mudar configurações vale para **todo o banco do Odoo**, ou seja, para todas as empresas ERA ligadas a ele. Por isso exige `odoo:admin`. A instalação roda dentro da requisição e pode levar alguns minutos.
+- Antes de instalar módulos no banco local, apague a rota "Comprar" órfã: `delete from stock_route_product where route_id=5`.
+- Registros sem empresa no Odoo (conversas, calendário, lista de tarefas, contatos compartilhados) aparecem para qualquer empresa ERA ligada ao mesmo Odoo. Com uma empresa por banco Odoo, isso não importa.
+- Visões kanban, calendário, pivô e gráfico aparecem como lista. Painéis próprios do Odoo (ações de cliente, como Painéis em planilha) mostram um aviso; Conversas aparecem como lista de canais com histórico. Filtros com datas relativas (ex.: "este mês") não são exibidos. Links externos de ações (`act_url`) não são abertos.
+
+Etapas que antes ficavam no Odoo (ex.: lotes e números de série na validação de estoque, backorder na fabricação) agora são feitas pelos assistentes em **Todos os aplicativos**.

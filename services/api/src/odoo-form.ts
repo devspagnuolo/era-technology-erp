@@ -44,11 +44,24 @@ export type SubSchema = {
   fields: Record<string, FieldDef>;
   deps: string[];
 };
+// Botão do cabeçalho do formulário do Odoo (confirmar, validar, imprimir...).
+export type ButtonDef = {
+  name: string;
+  type: "object" | "action";
+  label: string;
+  invisibleIf?: string;
+  context?: string;
+  confirm?: string;
+  primary?: boolean;
+};
 export type FormSchema = {
   model: string;
   sections: Array<{ title: string; fields: string[] }>;
   fields: Record<string, FieldDef>;
   deps: string[];
+  buttons?: ButtonDef[];
+  // Situação do cabeçalho (statusbar), exibida junto dos botões.
+  status?: { name: string; selection: Array<[string, string]> };
 };
 type Meta = {
   name: string;
@@ -71,6 +84,10 @@ export type FormOptions = {
   hidden?: string[];
   // Rótulos ajustados para a ERA (inclusive em itens).
   labels?: Record<string, string>;
+  // Tela específica do Odoo (a da ação do menu) em vez da padrão do modelo.
+  viewId?: number;
+  // Inclui os botões do cabeçalho (telas genéricas da ERA).
+  buttons?: boolean;
 };
 
 const SUPPORTED = new Set([
@@ -166,6 +183,10 @@ export function buildSchema(
     // Do cabeçalho só vem a etapa clicável (ex.: estágio do CRM, da tarefa),
     // que vira um campo comum; botões e situações fixas ficam de fora.
     if (node.tag === "header") {
+      if (options.buttons) {
+        collectButtons(node, invisible);
+        status ??= statusOf(node);
+      }
       for (const child of stages(node, meta))
         walk(
           { ...child, attrs: { ...child.attrs, widget: "stage" } },
@@ -174,6 +195,11 @@ export function buildSchema(
           invisible,
           off,
         );
+      return;
+    }
+    // Rodapé dos assistentes (wizards): os botões que concluem a etapa.
+    if (node.tag === "footer") {
+      if (options.buttons) collectButtons(node, invisible);
       return;
     }
     if (node.tag === "button" || node.tag === "widget") return;
@@ -199,6 +225,10 @@ export function buildSchema(
     const scopeInvisible = orExpr(invisible, ownInvisible);
     if (node.tag === "page") section = attrs.string || attrs.name || section;
     if (node.tag === "group" && attrs.string) group = attrs.string;
+    // Tela de configurações do Odoo 17+: aplicativo, bloco e configuração.
+    if (node.tag === "app") section = attrs.string || attrs.name || section;
+    if (node.tag === "block" && (attrs.title || attrs.string))
+      group = attrs.title || attrs.string;
     if (node.tag !== "field") {
       for (const child of node.children)
         walk(child, section, group, scopeInvisible);
@@ -251,6 +281,48 @@ export function buildSchema(
     const at = order.findIndex((o) => o.name === name);
     order.splice(at + 1, 0, { section: order[at].section, name: end });
   };
+  const buttons: ButtonDef[] = [];
+  let status: FormSchema["status"];
+  function statusOf(node: ArchNode): FormSchema["status"] {
+    for (const child of node.children) {
+      const { name, widget } = child.attrs;
+      if (child.tag === "field" && /^statusbar/.test(widget ?? "")) {
+        const info = meta[name];
+        if (info?.type === "selection" && info.selection)
+          return { name, selection: info.selection };
+      }
+      const found = child.tag === "field" ? undefined : statusOf(child);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  function collectButtons(node: ArchNode, invisible: string | undefined) {
+    for (const child of node.children) {
+      const attrs = child.attrs;
+      if (isStatic(attrs.invisible)) continue;
+      const own =
+        attrs.invisible && !NEVER.includes(attrs.invisible.trim())
+          ? attrs.invisible
+          : undefined;
+      if (child.tag !== "button") {
+        collectButtons(child, orExpr(invisible, own));
+        continue;
+      }
+      if (!attrs.name || !attrs.string) continue;
+      if (attrs.type !== "object" && attrs.type !== "action") continue;
+      const button: ButtonDef = {
+        name: attrs.name,
+        type: attrs.type,
+        label: attrs.string,
+      };
+      const hide = orExpr(invisible, own);
+      if (hide) button.invisibleIf = hide;
+      if (attrs.context) button.context = attrs.context;
+      if (attrs.confirm) button.confirm = attrs.confirm;
+      if ((attrs.class ?? "").includes("btn-primary")) button.primary = true;
+      buttons.push(button);
+    }
+  }
   // Campos sempre ocultos: só os simples (sem listas nem arquivos).
   function keepHidden(attrs: Record<string, string>) {
     const name = attrs.name;
@@ -283,11 +355,23 @@ export function buildSchema(
     if (!target) sections.push((target = { title: section, fields: [] }));
     target.fields.push(name);
   }
+  const deps = dependencies(fields, meta);
+  if (status && !fields[status.name] && !deps.includes(status.name))
+    deps.push(status.name);
+  for (const button of buttons)
+    if (button.invisibleIf)
+      for (const name of names(button.invisibleIf))
+        if (!fields[name] && !deps.includes(name) && meta[name]) {
+          if (meta[name].type === "one2many") continue;
+          deps.push(name);
+        }
   return {
     model,
     sections,
     fields,
-    deps: dependencies(fields, meta),
+    deps,
+    ...(options.buttons ? { buttons } : {}),
+    ...(status ? { status } : {}),
   };
 }
 
@@ -809,6 +893,12 @@ export class OdooForms {
   private lang: Promise<string | null> | null = null;
   constructor(@Inject(OdooClient) private odoo: OdooClient) {}
 
+  // Depois de instalar ou remover aplicativos as telas do Odoo mudam.
+  forget() {
+    this.schemas.clear();
+    this.companyFields.clear();
+  }
+
   schema(companyId: number, model: string, options: FormOptions = {}) {
     const key = model + JSON.stringify(options);
     const cached = this.schemas.get(key);
@@ -827,7 +917,7 @@ export class OdooForms {
     const views = await this.call<{
       views: { form: { arch: string } };
       models: Models;
-    }>(companyId, model, "get_views", [[[false, "form"]]], {});
+    }>(companyId, model, "get_views", [[[options.viewId ?? false, "form"]]], {});
     const arch = parseArch(views.views.form.arch);
     // Listas de itens sem tela embutida usam a lista padrão do modelo filho.
     const extra: Record<string, ArchNode> = {};
@@ -962,6 +1052,7 @@ export class OdooForms {
     schema: FormSchema,
     raw: unknown,
     recordId?: number,
+    context: Values = {},
   ) {
     const body = (raw ?? {}) as {
       values?: Values;
@@ -1008,7 +1099,7 @@ export class OdooForms {
           lineField ? [lineField] : [],
           spec,
         ],
-        {},
+        { context },
       );
       return {
         line: changesFromOdoo(
@@ -1030,7 +1121,7 @@ export class OdooForms {
         [field],
         specOf(schema.fields, schema.deps, depTypes),
       ],
-      {},
+      { context },
     );
     return {
       values: changesFromOdoo(
@@ -1042,7 +1133,12 @@ export class OdooForms {
     };
   }
 
-  async lookup(companyId: number, schema: FormSchema, raw: unknown) {
+  async lookup(
+    companyId: number,
+    schema: FormSchema,
+    raw: unknown,
+    context: Values = {},
+  ) {
     const body = (raw ?? {}) as {
       field?: string;
       q?: string;
@@ -1081,7 +1177,7 @@ export class OdooForms {
       def.relation,
       "name_search",
       [q, domain, "ilike", 30],
-      {},
+      { context },
     );
     return found.map(([id, name]) => ({ id, name }));
   }
@@ -1113,18 +1209,23 @@ export class OdooForms {
     return this.lang;
   }
 
-  private async call<T>(
+  async call<T>(
     companyId: number,
     model: string,
     method: string,
     args: unknown[],
     kwargs: Record<string, unknown>,
+    timeoutMs?: number,
   ): Promise<T> {
     const lang = await this.language(companyId);
     const context = (kwargs.context as Values | undefined) ?? {};
-    return this.odoo.execute<T>(companyId, model, method, args, {
-      ...kwargs,
-      context: lang ? { lang, ...context } : context,
-    });
+    return this.odoo.execute<T>(
+      companyId,
+      model,
+      method,
+      args,
+      { ...kwargs, context: lang ? { lang, ...context } : context },
+      timeoutMs,
+    );
   }
 }

@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Package,
@@ -39,10 +38,8 @@ const quantity = (value: number) =>
 
 export function OdooProducts({
   permissions,
-  odooUrl,
 }: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const cache = useQueryClient();
   const [q, setQ] = useState("");
@@ -215,19 +212,6 @@ export function OdooProducts({
                                   </Button>
                                 </>
                               )}
-                              <a
-                                className="row-link"
-                                aria-label={"Abrir " + p.name + " no Odoo"}
-                                href={
-                                  odooUrl +
-                                  "/action-stock.product_template_action_product/" +
-                                  p.id
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ArrowUpRight size={16} />
-                              </a>
                             </div>
                           </td>
                         </tr>

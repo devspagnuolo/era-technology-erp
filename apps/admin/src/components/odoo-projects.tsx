@@ -110,7 +110,6 @@ const PROJECTS: AppKind<Project> = {
     },
   ],
   titleOf: (p) => p.name,
-  odooPath: "/odoo/project",
 };
 
 const TASKS: AppKind<Task> = {
@@ -165,12 +164,10 @@ const TASKS: AppKind<Task> = {
     },
   ],
   titleOf: (t) => t.name,
-  odooPath: "/odoo/all-tasks",
 };
 
 export function OdooProjects(props: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const [tab, setTab] = useState<"projects" | "tasks">("projects");
   const [project, setProject] = useState<{ id: number; name: string } | null>(

@@ -99,9 +99,8 @@ const TIME_OFF: AppKind<Leave> = {
     },
   ],
   titleOf,
-  odooPath: "/odoo/time-off-approval",
 };
 
-export function OdooTimeOff(props: { permissions: string[]; odooUrl: string }) {
+export function OdooTimeOff(props: { permissions: string[] }) {
   return <OdooApp kind={TIME_OFF} {...props} />;
 }
