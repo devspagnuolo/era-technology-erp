@@ -38,8 +38,12 @@ export type Menu = {
   xmlid: string;
   action: number | null;
   icon?: string;
+  // Grupo do menu lateral, pela categoria do aplicativo no Odoo.
+  area?: "commercial" | "operations" | "people" | "productivity" | "other";
   children: Menu[];
 };
+// Menus raiz do Odoo que a ERA substitui (loja e configurações próprias).
+export const HIDDEN_APPS = ["base.menu_management", "base.menu_administration"];
 export type RunTarget = {
   app?: string; // xmlid do menu raiz do aplicativo
   screen?: "launcher" | "store" | "settings";
@@ -240,12 +244,7 @@ export function OdooRun({
       ) : (
         <div className="run-launcher">
           {menus.data
-            .filter(
-              (m) =>
-                !["base.menu_management", "base.menu_administration"].includes(
-                  m.xmlid,
-                ),
-            )
+            .filter((m) => !HIDDEN_APPS.includes(m.xmlid))
             .map((menu) => (
               <button
                 type="button"

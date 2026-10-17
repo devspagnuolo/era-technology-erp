@@ -55,7 +55,7 @@ import { OdooEmployees } from "../components/odoo-employees";
 import { OdooMaintenance } from "../components/odoo-maintenance";
 import { OdooTimeOff } from "../components/odoo-time-off";
 import { OdooExpenses } from "../components/odoo-expenses";
-import { OdooRun, type RunTarget } from "../components/odoo-run";
+import { HIDDEN_APPS, OdooRun, type Menu as OdooMenu, type RunTarget } from "../components/odoo-run";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -169,7 +169,7 @@ function Catalog() {
   const cache = useQueryClient();
   const setSession = useSession((s) => s.setSession);
   const [view, setView] = useState<EraView>("home");
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, commercial: true, operations: true, people: false, productivity: false, administration: false });
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, commercial: true, operations: true, people: false, productivity: false, administration: false, other: false });
   const [navQuery, setNavQuery] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Aplicativo do Odoo aberto dentro da ERA (tela "apps").
@@ -183,6 +183,12 @@ function Catalog() {
   const user = useQuery({
     queryKey: ["me"],
     queryFn: () => api<User>("auth/me"),
+  });
+  const odooApps = useQuery({
+    queryKey: ["odoo-run", "menus"],
+    queryFn: () => api<OdooMenu[]>("odoo/run/menus"),
+    enabled: !!user.data?.permissions.includes("odoo:read"),
+    staleTime: 60000,
   });
   const audits = useQuery({
     queryKey: ["audit"],
@@ -253,7 +259,8 @@ function Catalog() {
     key: string;
     label: string;
     icon: React.ReactNode;
-    items: Array<{ label: string; icon: React.ReactNode; view?: EraView; run?: RunTarget; permission?: string }>;
+    // app: aplicativo do Odoo que o item já cobre (não se repete abaixo).
+    items: Array<{ label: string; icon: React.ReactNode; view?: EraView; run?: RunTarget; app?: string; permission?: string }>;
   }> = [
     { key: "overview", label: "Visão geral", icon: <House size={17} />, items: [
       { label: "Painel inicial", icon: <LayoutDashboard size={16} />, view: "home" },
@@ -261,24 +268,24 @@ function Catalog() {
       { label: "Todos os aplicativos", icon: <LayoutGrid size={16} />, run: {}, permission: "odoo:read" },
     ] },
     { key: "commercial", label: "Comercial e financeiro", icon: <Handshake size={17} />, items: [
-      { label: "CRM", icon: <Handshake size={16} />, view: "crm", permission: "crm:read" },
-      { label: "Contatos", icon: <ContactRound size={16} />, view: "contacts", permission: "contacts:read" },
-      { label: "Vendas", icon: <ShoppingCart size={16} />, view: "sales", permission: "sales:read" },
-      { label: "Faturamento", icon: <ReceiptText size={16} />, view: "invoices", permission: "invoices:read" },
+      { label: "CRM", icon: <Handshake size={16} />, view: "crm", app: "crm.crm_menu_root", permission: "crm:read" },
+      { label: "Contatos", icon: <ContactRound size={16} />, view: "contacts", app: "contacts.menu_contacts", permission: "contacts:read" },
+      { label: "Vendas", icon: <ShoppingCart size={16} />, view: "sales", app: "sale.sale_menu_root", permission: "sales:read" },
+      { label: "Faturamento", icon: <ReceiptText size={16} />, view: "invoices", app: "account.menu_finance", permission: "invoices:read" },
       { label: "Fiscal", icon: <FileText size={16} />, run: { app: "l10n_br_fiscal.fiscal_menu" }, permission: "odoo:read" },
     ] },
     { key: "operations", label: "Operações", icon: <Warehouse size={17} />, items: [
       { label: "Produtos", icon: <Package size={16} />, view: "products", permission: "products:read" },
-      { label: "Estoque", icon: <Warehouse size={16} />, view: "inventory", permission: "inventory:read" },
-      { label: "Compras", icon: <Truck size={16} />, view: "purchases", permission: "purchases:read" },
-      { label: "Fabricação", icon: <Factory size={16} />, view: "manufacturing", permission: "manufacturing:read" },
-      { label: "Manutenção", icon: <Wrench size={16} />, view: "maintenance", permission: "maintenance:read" },
-      { label: "Projetos", icon: <FolderKanban size={16} />, view: "projects", permission: "projects:read" },
+      { label: "Estoque", icon: <Warehouse size={16} />, view: "inventory", app: "stock.menu_stock_root", permission: "inventory:read" },
+      { label: "Compras", icon: <Truck size={16} />, view: "purchases", app: "purchase.menu_purchase_root", permission: "purchases:read" },
+      { label: "Fabricação", icon: <Factory size={16} />, view: "manufacturing", app: "mrp.menu_mrp_root", permission: "manufacturing:read" },
+      { label: "Manutenção", icon: <Wrench size={16} />, view: "maintenance", app: "maintenance.menu_maintenance_title", permission: "maintenance:read" },
+      { label: "Projetos", icon: <FolderKanban size={16} />, view: "projects", app: "project.menu_main_pm", permission: "projects:read" },
     ] },
     { key: "people", label: "Pessoas", icon: <IdCard size={17} />, items: [
-      { label: "Funcionários", icon: <IdCard size={16} />, view: "employees", permission: "employees:read" },
-      { label: "Folgas e ausências", icon: <CalendarDays size={16} />, view: "timeoff", permission: "timeoff:read" },
-      { label: "Despesas", icon: <ReceiptText size={16} />, view: "expenses", permission: "expenses:read" },
+      { label: "Funcionários", icon: <IdCard size={16} />, view: "employees", app: "hr.menu_hr_root", permission: "employees:read" },
+      { label: "Folgas e ausências", icon: <CalendarDays size={16} />, view: "timeoff", app: "hr_holidays.menu_hr_holidays_root", permission: "timeoff:read" },
+      { label: "Despesas", icon: <ReceiptText size={16} />, view: "expenses", app: "hr_expense.menu_hr_expense_root", permission: "expenses:read" },
     ] },
     { key: "productivity", label: "Produtividade", icon: <ChartNoAxesCombined size={17} />, items: [
       { label: "Mensagens", icon: <MessageSquare size={16} />, run: { app: "mail.menu_root_discuss" }, permission: "odoo:read" },
@@ -294,7 +301,25 @@ function Catalog() {
       { label: "Loja de aplicativos", icon: <Puzzle size={16} />, run: { screen: "store" }, permission: "odoo:read" },
       { label: "Configurações dos aplicativos", icon: <Settings2 size={16} />, run: { screen: "settings" }, permission: "odoo:admin" },
     ] },
+    { key: "other", label: "Outros aplicativos", icon: <LayoutGrid size={17} />, items: [] },
   ];
+  // Aplicativos instalados no Odoo entram sozinhos no grupo da categoria que
+  // o Odoo dá a eles (inclusive os instalados pela loja da ERA).
+  const covered = new Set(
+    navigation.flatMap((g) => g.items.map((i) => i.app ?? i.run?.app)),
+  );
+  for (const app of odooApps.data ?? []) {
+    if (covered.has(app.xmlid) || HIDDEN_APPS.includes(app.xmlid)) continue;
+    const group =
+      navigation.find((g) => g.key === app.area) ??
+      navigation.find((g) => g.key === "other");
+    group?.items.push({
+      label: app.name,
+      icon: app.icon ? <img src={app.icon} alt="" className="era-nav-appicon" /> : <LayoutGrid size={16} />,
+      run: { app: app.xmlid },
+      permission: "odoo:read",
+    });
+  }
   const normalizedNavQuery = navQuery.trim().toLocaleLowerCase("pt-BR");
   return (
     <div className="shell era-shell">
@@ -388,6 +413,7 @@ function Catalog() {
             />
           ) : view === "modules" ? (
             <EraModuleCenter
+              apps={odooApps.data}
               onRun={(target) => openRun(target)}
               views={views}
               onViewChange={(nextView) => { setSelectedOdooModule(null); setView(nextView); }}
