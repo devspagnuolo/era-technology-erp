@@ -414,8 +414,8 @@ td {
   min-height: 100vh;
 }
 .login-story {
-  background: #133e31;
-  color: #eff8f1;
+  background: #102448;
+  color: #eff5ff;
   padding: 60px 70px;
   display: flex;
   flex-direction: column;
@@ -432,7 +432,7 @@ td {
 .login-story > p:last-of-type {
   font-size: 15px;
   line-height: 1.9;
-  color: #a6beb0;
+  color: #b8c9e2;
   max-width: 360px;
 }
 .login-foot {
@@ -441,7 +441,7 @@ td {
   margin-top: auto;
   padding-top: 80px;
   font-size: 12px;
-  color: #b7cebf;
+  color: #b7cce6;
 }
 .login-form {
   display: grid;
@@ -470,6 +470,11 @@ td {
   color: #8f9c93;
   font-size: 10px;
   margin-top: 26px;
+}
+.login-form small.login-odoo-note {
+  margin-top: 9px;
+  text-align: center;
+  line-height: 1.5;
 }
 @media (max-width: 900px) {
   aside {
@@ -827,19 +832,13 @@ select:focus-visible {
   right: 9%;
   top: 50%;
   transform: translateY(-56%);
-  color: #ffffff0c;
-  text-align: center;
-  font-size: clamp(110px, 17vw, 210px);
-  line-height: .8;
-  letter-spacing: -16px;
-  font-weight: 900;
+  width: 235px;
+  height: 128px;
+  border: 8px solid #fff;
+  border-radius: 15px;
+  box-shadow: 0 15px 38px #071c3a4d;
+  opacity: .98;
   user-select: none;
-}
-.era-welcome-mark small {
-  display: block;
-  margin-top: 18px;
-  font-size: 10px;
-  letter-spacing: 8px;
 }
 .era-welcome-footnote {
   position: absolute;
@@ -1261,3 +1260,103 @@ select:focus-visible {
     font-size: 27px;
   }
 }
+
+/* Official ERA wordmark: preserve the supplied PNG and crop its transparent canvas in the frame. */
+.era-logo {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: #fff;
+}
+.era-logo-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  transform: translateY(-18%);
+}
+.era-brand {
+  justify-content: center;
+  padding: 0 0 20px;
+}
+.sidebar-logo {
+  width: 218px;
+  height: 120px;
+  border-radius: 12px;
+}
+.login-logo {
+  width: min(290px, 100%);
+  height: 158px;
+  margin-bottom: 18px;
+  border-radius: 15px;
+  box-shadow: 0 16px 36px #06172c30;
+}
+.era-odoo-handoff {
+  max-width: 760px;
+  margin: 42px auto;
+  padding: 36px;
+  border: 1px solid #e1e8f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px #173d6b0b;
+}
+.era-handoff-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 22px;
+  place-items: center;
+  border-radius: 14px;
+  color: #246bc3;
+  background: #edf5ff;
+}
+.era-odoo-handoff h1 {
+  margin-top: 8px;
+  color: #203653;
+}
+.era-odoo-handoff p {
+  max-width: 620px;
+  margin: 12px 0 22px;
+  color: #70819a;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.era-odoo-handoff small {
+  display: block;
+  margin-top: 13px;
+  color: #8797aa;
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .sidebar-logo {
+    width: 178px;
+    height: 84px;
+    border-radius: 8px;
+  }
+  .login-logo {
+    width: 230px;
+    height: 126px;
+  }
+  .era-shell .era-sidebar {
+    min-height: 96px;
+  }
+  .era-welcome-mark {
+    right: 4%;
+    top: auto;
+    bottom: 48px;
+    transform: none;
+    width: 150px;
+    height: 82px;
+    border-width: 5px;
+    border-radius: 10px;
+    opacity: .32;
+  }
+  .era-odoo-handoff {
+    margin: 22px auto;
+    padding: 24px;
+  }
+}
+

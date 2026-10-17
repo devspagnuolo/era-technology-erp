@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { EraLogo } from "./era-logo";
 import {
   ArrowUpRight,
   Boxes,
@@ -206,10 +207,7 @@ export function EraDashboard({
             </button>
           </div>
         </div>
-        <div className="era-welcome-mark" aria-hidden="true">
-          <span>ERA</span>
-          <small>TECHNOLOGY</small>
-        </div>
+        <EraLogo className="era-welcome-mark" />
         <div className="era-welcome-footnote">
           <span className="era-status-dot" />
           Odoo Community como núcleo · interface ERA em construção
@@ -258,9 +256,9 @@ export function EraDashboard({
         </button>
         <button className="era-setup-card" onClick={() => onViewChange("products")}>
           <span className="era-setup-number">02</span>
-          <strong>Teste os cadastros ERA</strong>
-          <span>O catálogo desta interface é uma área de demonstração isolada.</span>
-          <span className="era-setup-action">Abrir catálogo ERA <ArrowUpRight size={14} /></span>
+          <strong>Produtos e estoque</strong>
+          <span>Consulte e atualize os cadastros operacionais diretamente no Odoo.</span>
+          <span className="era-setup-action">Acessar pelo Odoo <ArrowUpRight size={14} /></span>
         </button>
         <div className="era-setup-note">
           <CircleHelp size={19} />
@@ -271,7 +269,7 @@ export function EraDashboard({
         </div>
       </section>
       <p className="era-integration-note">
-        Os cartões abrem o seletor de aplicativos do Odoo em outra aba. A conexão de dados e o acesso direto a cada módulo serão implementados por etapas.
+        O Odoo é o motor operacional e a fonte oficial dos cadastros. A ERA organiza os acessos; integração direta e autenticação única ainda serão construídas por etapas.
       </p>
     </div>
   );
@@ -293,7 +291,7 @@ export function EraModuleCenter({ odooUrl }: { odooUrl: string }) {
         <div>
           <span className="era-eyebrow">CENTRAL ERA</span>
           <h1>Módulos</h1>
-          <p>Acesse as aplicações que compõem a gestão da ERA.</p>
+          <p>Os atalhos levam ao ambiente Odoo; escolha o aplicativo desejado no menu de lá.</p>
         </div>
         <OdooLink className="era-primary-link" href={odooUrl}>
           Abrir o Odoo <ArrowUpRight size={16} />
@@ -337,9 +335,10 @@ export function EraModuleCenter({ odooUrl }: { odooUrl: string }) {
         <div className="era-no-modules">Nenhum módulo corresponde a “{query}”.</div>
       )}
       <div className="era-module-disclaimer">
-        Os módulos continuam sendo operados pelo Odoo. Este painel organiza os acessos; ainda não sincroniza registros entre os dois sistemas.
+        O Odoo continua responsável pelos registros e operações. Esta central não sincroniza dados nem substitui o login do Odoo.
       </div>
     </div>
   );
 }
+
 
