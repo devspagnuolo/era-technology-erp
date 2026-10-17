@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import {
   Package,
   ArrowUpRight,
+  LayoutGrid,
   Building2,
   ShieldCheck,
   LogOut,
@@ -54,6 +55,7 @@ import { OdooEmployees } from "../components/odoo-employees";
 import { OdooMaintenance } from "../components/odoo-maintenance";
 import { OdooTimeOff } from "../components/odoo-time-off";
 import { OdooExpenses } from "../components/odoo-expenses";
+import { OdooRun, type RunTarget } from "../components/odoo-run";
 import { EraLogo } from "../components/era-logo";
 import {
   EraDashboard,
@@ -61,12 +63,6 @@ import {
   type EraView,
 } from "../components/era-workspace";
 
-const odooBaseUrl = (
-  process.env.NEXT_PUBLIC_ODOO_URL || "https://era-odoo-poc.onrender.com"
-).replace(/\/+$/, "");
-const odooEntryUrl = odooBaseUrl.endsWith("/odoo")
-  ? odooBaseUrl
-  : `${odooBaseUrl}/odoo`;
 type User = {
   id: string;
   name: string;
@@ -165,9 +161,6 @@ function Login() {
           <small>
             <ShieldCheck size={14} /> Acesso seguro ao ambiente da sua empresa
           </small>
-          <small className="login-odoo-note">
-            O acesso ao Odoo pode solicitar um login separado.
-          </small>
         </form>
       </section>
     </main>
@@ -185,7 +178,14 @@ function Catalog() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ overview: true, commercial: true, operations: true, people: false, productivity: false, administration: false });
   const [navQuery, setNavQuery] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Aplicativo do Odoo aberto dentro da ERA (tela "apps").
+  const [runTarget, setRunTarget] = useState<RunTarget>({});
   const [selectedOdooModule, setSelectedOdooModule] = useState<string | null>(null);
+  const openRun = (target: RunTarget, label: string | null = null) => {
+    setRunTarget(target);
+    setSelectedOdooModule(label);
+    setView("apps");
+  };
   const user = useQuery({
     queryKey: ["me"],
     queryFn: () => api<User>("auth/me"),
@@ -216,6 +216,7 @@ function Catalog() {
   const viewLabels: Record<EraView, string> = {
     home: "Visão geral",
     modules: "Módulos ERA",
+    apps: "Aplicativos",
     products: "Produtos",
     contacts: "Clientes e fornecedores",
     sales: "Vendas",
@@ -258,18 +259,19 @@ function Catalog() {
     key: string;
     label: string;
     icon: React.ReactNode;
-    items: Array<{ label: string; icon: React.ReactNode; view?: EraView; permission?: string }>;
+    items: Array<{ label: string; icon: React.ReactNode; view?: EraView; run?: RunTarget; permission?: string }>;
   }> = [
     { key: "overview", label: "Visão geral", icon: <House size={17} />, items: [
       { label: "Painel inicial", icon: <LayoutDashboard size={16} />, view: "home" },
       { label: "Central de módulos", icon: <Layers3 size={16} />, view: "modules" },
+      { label: "Todos os aplicativos", icon: <LayoutGrid size={16} />, run: {}, permission: "odoo:read" },
     ] },
     { key: "commercial", label: "Comercial e financeiro", icon: <Handshake size={17} />, items: [
       { label: "CRM", icon: <Handshake size={16} />, view: "crm", permission: "crm:read" },
       { label: "Contatos", icon: <ContactRound size={16} />, view: "contacts", permission: "contacts:read" },
       { label: "Vendas", icon: <ShoppingCart size={16} />, view: "sales", permission: "sales:read" },
       { label: "Faturamento", icon: <ReceiptText size={16} />, view: "invoices", permission: "invoices:read" },
-      { label: "Fiscal", icon: <FileText size={16} /> },
+      { label: "Fiscal", icon: <FileText size={16} />, run: { app: "l10n_br_fiscal.fiscal_menu" }, permission: "odoo:read" },
     ] },
     { key: "operations", label: "Operações", icon: <Warehouse size={17} />, items: [
       { label: "Produtos", icon: <Package size={16} />, view: "products", permission: "products:read" },
@@ -285,18 +287,18 @@ function Catalog() {
       { label: "Despesas", icon: <ReceiptText size={16} />, view: "expenses", permission: "expenses:read" },
     ] },
     { key: "productivity", label: "Produtividade", icon: <ChartNoAxesCombined size={17} />, items: [
-      { label: "Mensagens", icon: <MessageSquare size={16} /> },
-      { label: "Calendário", icon: <CalendarDays size={16} /> },
-      { label: "Tarefas", icon: <CheckSquare size={16} /> },
-      { label: "Painéis", icon: <ChartNoAxesCombined size={16} /> },
+      { label: "Mensagens", icon: <MessageSquare size={16} />, run: { app: "mail.menu_root_discuss" }, permission: "odoo:read" },
+      { label: "Calendário", icon: <CalendarDays size={16} />, run: { app: "calendar.mail_menu_calendar" }, permission: "odoo:read" },
+      { label: "Tarefas", icon: <CheckSquare size={16} />, run: { app: "project_todo.menu_todo_todos" }, permission: "odoo:read" },
+      { label: "Painéis", icon: <ChartNoAxesCombined size={16} />, run: { app: "spreadsheet_dashboard.spreadsheet_dashboard_menu_root" }, permission: "odoo:read" },
     ] },
     { key: "administration", label: "Administração", icon: <Settings2 size={17} />, items: [
       { label: "Usuários", icon: <ContactRound size={16} />, view: "users", permission: "users:read" },
       { label: "Filiais", icon: <Building2 size={16} />, view: "branches", permission: "core:read" },
       { label: "Perfis e permissões", icon: <ShieldCheck size={16} />, view: "profiles", permission: "profiles:read" },
       { label: "Auditoria", icon: <ShieldCheck size={16} />, view: "audit", permission: "audit:read" },
-      { label: "Aplicativos Odoo", icon: <Puzzle size={16} />, view: "modules" },
-      { label: "Definições Odoo", icon: <Settings2 size={16} /> },
+      { label: "Loja de aplicativos", icon: <Puzzle size={16} />, run: { screen: "store" }, permission: "odoo:read" },
+      { label: "Configurações dos aplicativos", icon: <Settings2 size={16} />, run: { screen: "settings" }, permission: "odoo:admin" },
     ] },
   ];
   const normalizedNavQuery = navQuery.trim().toLocaleLowerCase("pt-BR");
@@ -334,27 +336,20 @@ function Catalog() {
                 {expanded && <div className="era-nav-submenu">
                   {items.map((item) => {
                     const isActive = item.view === view || item.label === selectedOdooModule;
-                    return item.view ? (
+                    return (
                       <button
                         type="button"
                         key={item.label}
                         className={isActive ? "era-nav-subitem active" : "era-nav-subitem"}
                         aria-current={isActive ? "page" : undefined}
-                        onClick={() => { setSelectedOdooModule(null); setView(item.view!); setMobileNavOpen(false); }}
+                        onClick={() => {
+                          if (item.run) openRun(item.run, item.label);
+                          else { setSelectedOdooModule(null); setView(item.view!); }
+                          setMobileNavOpen(false);
+                        }}
                       >
                         <span className="era-nav-subicon">{item.icon}</span>{item.label}
                       </button>
-                    ) : (
-                      <a
-                        key={item.label}
-                        className={isActive ? "era-nav-subitem active" : "era-nav-subitem"}
-                        href={odooEntryUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => { setSelectedOdooModule(item.label); setMobileNavOpen(false); }}
-                      >
-                        <span className="era-nav-subicon">{item.icon}</span>{item.label}<ArrowUpRight size={13} className="era-external-icon" />
-                      </a>
                     );
                   })}
                 </div>}
@@ -393,15 +388,21 @@ function Catalog() {
           {view === "home" ? (
             <EraDashboard
               name={user.data?.name || "equipe ERA"}
-              odooUrl={odooEntryUrl}
+              onRun={(target) => openRun(target)}
               views={views}
               onViewChange={(nextView) => { setSelectedOdooModule(null); setView(nextView); }}
             />
           ) : view === "modules" ? (
             <EraModuleCenter
-              odooUrl={odooEntryUrl}
+              onRun={(target) => openRun(target)}
               views={views}
               onViewChange={(nextView) => { setSelectedOdooModule(null); setView(nextView); }}
+            />
+          ) : view === "apps" ? (
+            <OdooRun
+              permissions={permissions}
+              target={runTarget}
+              onTarget={(target) => openRun(target)}
             />
           ) : view === "users" || view === "branches" || view === "profiles" ? (
             <CorePanel
@@ -411,48 +412,42 @@ function Catalog() {
               currentUserId={user.data?.id ?? ""}
             />
           ) : view === "crm" ? (
-            <OdooCrm permissions={permissions} odooUrl={odooEntryUrl} />
+            <OdooCrm permissions={permissions} />
           ) : view === "manufacturing" ? (
             <OdooManufacturing
               permissions={permissions}
-              odooUrl={odooEntryUrl}
             />
           ) : view === "projects" ? (
-            <OdooProjects permissions={permissions} odooUrl={odooEntryUrl} />
+            <OdooProjects permissions={permissions} />
           ) : view === "employees" ? (
-            <OdooEmployees permissions={permissions} odooUrl={odooEntryUrl} />
+            <OdooEmployees permissions={permissions} />
           ) : view === "maintenance" ? (
-            <OdooMaintenance permissions={permissions} odooUrl={odooEntryUrl} />
+            <OdooMaintenance permissions={permissions} />
           ) : view === "timeoff" ? (
-            <OdooTimeOff permissions={permissions} odooUrl={odooEntryUrl} />
+            <OdooTimeOff permissions={permissions} />
           ) : view === "expenses" ? (
-            <OdooExpenses permissions={permissions} odooUrl={odooEntryUrl} />
+            <OdooExpenses permissions={permissions} />
           ) : view === "invoices" ? (
             <OdooInvoices
               permissions={user.data?.permissions ?? []}
-              odooUrl={odooEntryUrl}
             />
           ) : view === "inventory" ? (
             <OdooTransfers
               permissions={user.data?.permissions ?? []}
-              odooUrl={odooEntryUrl}
             />
           ) : view === "sales" || view === "purchases" ? (
             <OdooOrders
               key={view}
               kind={view === "sales" ? SALES : PURCHASES}
               permissions={user.data?.permissions ?? []}
-              odooUrl={odooEntryUrl}
             />
           ) : view === "contacts" ? (
             <OdooContacts
               permissions={user.data?.permissions ?? []}
-              odooUrl={odooEntryUrl}
             />
           ) : view === "products" ? (
             <OdooProducts
               permissions={user.data?.permissions ?? []}
-              odooUrl={odooEntryUrl}
             />
           ) : (
             <>

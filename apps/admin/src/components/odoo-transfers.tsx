@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -54,10 +53,8 @@ const dateLabel = (value: string) =>
 
 export function OdooTransfers({
   permissions,
-  odooUrl,
 }: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const [kind, setKind] = useState<Kind>("incoming");
   const [q, setQ] = useState("");
@@ -207,19 +204,6 @@ export function OdooTransfers({
                               >
                                 Abrir
                               </Button>
-                              <a
-                                className="row-link"
-                                aria-label={"Abrir " + t.number + " no Odoo"}
-                                href={
-                                  odooUrl +
-                                  "/action-stock.action_picking_tree_all/" +
-                                  t.id
-                                }
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ArrowUpRight size={16} />
-                              </a>
                             </div>
                           </td>
                         </tr>

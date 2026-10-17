@@ -39,10 +39,20 @@ export type FieldDef = {
     fields: Record<string, FieldDef>;
   };
 };
+export type ButtonDef = {
+  name: string;
+  type: "object" | "action";
+  label: string;
+  invisibleIf?: string;
+  confirm?: string;
+  primary?: boolean;
+};
 export type FormSchema = {
   model: string;
   sections: Array<{ title: string; fields: string[] }>;
   fields: Record<string, FieldDef>;
+  buttons?: ButtonDef[];
+  status?: { name: string; selection: Array<[string, string]> };
 };
 export type Values = Record<string, unknown>;
 type Ref = { id: number; name: string };

@@ -114,12 +114,10 @@ const MANUFACTURING: AppKind<Production> = {
     },
   ],
   titleOf: (p) => p.number,
-  odooPath: "/odoo/manufacturing",
 };
 
 export function OdooManufacturing(props: {
   permissions: string[];
-  odooUrl: string;
 }) {
   return <OdooApp kind={MANUFACTURING} {...props} />;
 }

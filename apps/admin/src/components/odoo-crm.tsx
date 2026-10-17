@@ -108,9 +108,8 @@ const CRM: AppKind<Lead> = {
     },
   ],
   titleOf: (l) => l.name,
-  odooPath: "/odoo/action-crm.crm_lead_action_pipeline",
 };
 
-export function OdooCrm(props: { permissions: string[]; odooUrl: string }) {
+export function OdooCrm(props: { permissions: string[] }) {
   return <OdooApp kind={CRM} {...props} />;
 }

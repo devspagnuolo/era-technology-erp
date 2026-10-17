@@ -2,7 +2,6 @@
 import { type ReactNode, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowUpRight,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -48,7 +47,6 @@ export type AppKind<T extends Row> = {
   facts?: (row: T) => Array<[string, ReactNode]>;
   actions?: AppAction<T>[];
   titleOf: (row: T) => string;
-  odooPath: string; // ex.: /odoo/crm
 };
 type Page<T> = { items: T[]; total: number; pageSize: number };
 
@@ -75,14 +73,12 @@ export function Badge({ stage, label }: { stage: string; label: string }) {
 export function OdooApp<T extends Row>({
   kind,
   permissions,
-  odooUrl,
   query = {},
   toolbar,
   rowActions,
 }: {
   kind: AppKind<T>;
   permissions: string[];
-  odooUrl: string;
   // Recorte extra da lista e do novo registro (ex.: projeto da tarefa).
   query?: Record<string, string>;
   toolbar?: ReactNode;
@@ -219,17 +215,6 @@ export function OdooApp<T extends Row>({
                                 Abrir
                               </Button>
                               {rowActions?.(row)}
-                              <a
-                                className="row-link"
-                                aria-label={
-                                  "Abrir " + kind.titleOf(row) + " no Odoo"
-                                }
-                                href={odooUrl + kind.odooPath + "/" + row.id}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ArrowUpRight size={16} />
-                              </a>
                             </div>
                           </td>
                         </tr>

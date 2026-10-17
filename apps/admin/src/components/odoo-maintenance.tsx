@@ -111,7 +111,6 @@ const REQUESTS: AppKind<Request> = {
     },
   ],
   titleOf: (r) => r.name,
-  odooPath: "/odoo/action-maintenance.hr_equipment_request_action",
 };
 
 const EQUIPMENT: AppKind<Equipment> = {
@@ -171,12 +170,10 @@ const EQUIPMENT: AppKind<Equipment> = {
     },
   ],
   titleOf: (e) => e.name,
-  odooPath: "/odoo/action-maintenance.hr_equipment_action",
 };
 
 export function OdooMaintenance(props: {
   permissions: string[];
-  odooUrl: string;
 }) {
   const [tab, setTab] = useState<"requests" | "equipment">("requests");
   return (

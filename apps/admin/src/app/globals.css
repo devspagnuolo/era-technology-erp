@@ -2352,3 +2352,267 @@ input:focus {
     flex-wrap: wrap;
   }
 }
+
+/* Aplicativos do Odoo dentro da ERA (motor genérico). */
+.run-launcher {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.run-app-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 16px 10px;
+  border: 1px solid #dfe6ee;
+  border-radius: 10px;
+  background: #fff;
+  color: #17365e;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+.run-app-card:hover {
+  border-color: #92bce9;
+  box-shadow: 0 4px 12px #1024480c;
+}
+.run-app-card img,
+.run-store-card img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+.run-app-fallback {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: #e9f3ff;
+  color: var(--era-blue);
+}
+.run-appbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e4eae6;
+}
+.run-appbar img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.run-appbar strong {
+  color: #17365e;
+  font-size: 16px;
+}
+.run-menubar,
+.run-submenu,
+.run-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.run-menubar {
+  margin-left: 8px;
+}
+.run-menubar button,
+.run-submenu button,
+.run-chips button {
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #526b89;
+  white-space: nowrap;
+}
+.run-menubar button:hover,
+.run-submenu button:hover,
+.run-chips button:hover {
+  background: #f0f5fb;
+}
+.run-menubar button.active,
+.run-submenu button.active {
+  background: #e9f3ff;
+  color: var(--era-blue-dark);
+  font-weight: 600;
+}
+.run-submenu {
+  padding: 8px 0;
+  border-bottom: 1px solid #eef2f5;
+}
+.run-submenu-group {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: #8193a8;
+}
+.run-chips {
+  margin: 12px 0 4px;
+}
+.run-chips button {
+  border-color: #dfe6ee;
+  border-radius: 999px;
+}
+.run-chips button.active {
+  border-color: var(--era-blue);
+  background: #e9f3ff;
+  color: var(--era-blue-dark);
+}
+.run-back {
+  border: 0;
+  background: none;
+  color: #526b89;
+  padding: 4px;
+  margin-right: 4px;
+}
+.run-notice {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #17365e;
+  font-size: 13px;
+}
+.run-row {
+  cursor: pointer;
+}
+.run-row:hover td {
+  background: #f6f9fc;
+}
+.run-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.run-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.run-print select {
+  border: 1px solid #dce3df;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  background: #fff;
+}
+.run-chatter {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid #e4eae6;
+  display: grid;
+  gap: 10px;
+}
+.run-chatter h3 {
+  font-size: 14px;
+  color: #17365e;
+}
+.run-chatter-new {
+  display: grid;
+  gap: 8px;
+}
+.run-chatter-new textarea {
+  width: 100%;
+  min-height: 70px;
+  border: 1px solid #dce3df;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+.run-chatter-new > div {
+  display: flex;
+  gap: 6px;
+}
+.run-message {
+  padding: 9px 12px;
+  border: 1px solid #e7edf3;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+}
+.run-message.note {
+  background: #fbfaf2;
+}
+.run-message header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: #17365e;
+}
+.run-message time,
+.run-change,
+.run-empty {
+  color: #6f8197;
+  font-size: 12px;
+}
+.run-settings {
+  padding: 4px 18px 18px;
+}
+.run-store {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.run-store-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid #dfe6ee;
+  border-radius: 10px;
+  background: #fff;
+  flex-wrap: wrap;
+}
+.run-store-card > div:first-of-type {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+}
+.run-store-card strong {
+  color: #17365e;
+}
+.run-store-card p {
+  color: #617791;
+  font-size: 12px;
+}
+.run-store-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  justify-content: flex-end;
+}
+.run-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .run-launcher {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+  .run-menubar {
+    margin-left: 0;
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+}

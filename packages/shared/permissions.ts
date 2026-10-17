@@ -54,6 +54,11 @@ export const permissions = [
   "expenses:create",
   "expenses:update",
   "expenses:approve",
+  // Demais aplicativos do Odoo pelo motor genérico; admin instala
+  // aplicativos e altera configurações (valem para todo o Odoo).
+  "odoo:read",
+  "odoo:write",
+  "odoo:admin",
   "customers:read",
   "customers:create",
   "customers:update",
@@ -152,6 +157,8 @@ export const rolePresets: Record<
       ...maintenanceFull,
       ...timeoffFull,
       ...expensesFull,
+      "odoo:read",
+      "odoo:write",
       "audit:read",
     ],
   },
@@ -173,6 +180,7 @@ export const rolePresets: Record<
       ...maintenanceFull,
       "timeoff:read",
       "expenses:read",
+      "odoo:read",
     ],
   },
   OPERATOR: {

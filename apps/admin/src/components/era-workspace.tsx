@@ -23,10 +23,12 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import type { RunTarget } from "./odoo-run";
 
 export type EraView =
   | "home"
   | "modules"
+  | "apps"
   | "products"
   | "contacts"
   | "sales"
@@ -53,31 +55,37 @@ type EraModule = {
   description: string;
   icon: LucideIcon;
   featured?: boolean;
-  // Tela da ERA para o módulo; sem ela, o atalho abre o Odoo.
+  // Tela própria da ERA; sem ela (ou sem permissão), o módulo abre no
+  // motor genérico de aplicativos, também dentro da ERA.
   view?: EraView;
+  run: RunTarget;
 };
 
 export const ERA_MODULES: EraModule[] = [
   {
     name: "Mensagens",
+    run: { app: "mail.menu_root_discuss" },
     group: "Rotina",
     description: "Conversas internas e notificações do trabalho.",
     icon: MessageSquare,
   },
   {
     name: "Calendário",
+    run: { app: "calendar.mail_menu_calendar" },
     group: "Rotina",
     description: "Compromissos e agenda da equipe.",
     icon: CalendarDays,
   },
   {
     name: "Lista de tarefas",
+    run: { app: "project_todo.menu_todo_todos" },
     group: "Rotina",
     description: "Organize atividades rápidas e pendências.",
     icon: CheckSquare,
   },
   {
     name: "Contatos",
+    run: { app: "contacts.menu_contacts" },
     group: "Comercial",
     description: "Clientes, fornecedores e outros contatos.",
     icon: ContactRound,
@@ -85,6 +93,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "CRM",
+    run: { app: "crm.crm_menu_root" },
     group: "Comercial",
     description: "Acompanhe oportunidades e relacionamento comercial.",
     icon: UsersRound,
@@ -93,6 +102,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Vendas",
+    run: { app: "sale.sale_menu_root" },
     group: "Comercial",
     description: "Orçamentos e pedidos de venda.",
     icon: ShoppingCart,
@@ -101,18 +111,21 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Fiscal",
+    run: { app: "l10n_br_fiscal.fiscal_menu" },
     group: "Comercial",
     description: "Base fiscal brasileira; emissão requer configuração própria.",
     icon: FileText,
   },
   {
     name: "Painéis",
+    run: { app: "spreadsheet_dashboard.spreadsheet_dashboard_menu_root" },
     group: "Rotina",
-    description: "Indicadores e visões de acompanhamento disponíveis no Odoo.",
+    description: "Indicadores e visões de acompanhamento.",
     icon: ChartNoAxesCombined,
   },
   {
     name: "Faturamento",
+    run: { app: "account.menu_finance" },
     group: "Comercial",
     description: "Faturas e documentos financeiros de clientes.",
     icon: ReceiptText,
@@ -121,6 +134,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Projeto",
+    run: { app: "project.menu_main_pm" },
     group: "Operação",
     description: "Projetos, etapas e tarefas de entrega.",
     icon: FolderKanban,
@@ -128,6 +142,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Compras",
+    run: { app: "purchase.menu_purchase_root" },
     group: "Operação",
     description: "Solicitações, cotações e pedidos de compra.",
     icon: ShoppingCart,
@@ -135,6 +150,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Inventário",
+    run: { app: "stock.menu_stock_root" },
     group: "Operação",
     description: "Produtos, depósitos e movimentações de estoque.",
     icon: Boxes,
@@ -143,6 +159,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Fabricação",
+    run: { app: "mrp.menu_mrp_root" },
     group: "Operação",
     description: "Ordens e processos de produção, se aplicáveis ao negócio.",
     icon: Factory,
@@ -150,6 +167,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Manutenção",
+    run: { app: "maintenance.menu_maintenance_title" },
     group: "Operação",
     description: "Equipamentos e solicitações de manutenção.",
     icon: Wrench,
@@ -157,6 +175,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Funcionários",
+    run: { app: "hr.menu_hr_root" },
     group: "Equipe",
     description: "Cadastro e organização da equipe.",
     icon: UsersRound,
@@ -164,6 +183,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Folga",
+    run: { app: "hr_holidays.menu_hr_holidays_root" },
     group: "Equipe",
     description: "Solicitações e calendário de ausências.",
     icon: CalendarDays,
@@ -171,6 +191,7 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Despesas",
+    run: { app: "hr_expense.menu_hr_expense_root" },
     group: "Equipe",
     description: "Registro e revisão de despesas da equipe.",
     icon: ReceiptText,
@@ -178,73 +199,61 @@ export const ERA_MODULES: EraModule[] = [
   },
   {
     name: "Aplicativos",
+    run: { screen: "store" },
     group: "Sistema",
-    description: "Consulte os aplicativos disponíveis na instalação Odoo.",
+    description: "Instale, atualize ou remova aplicativos do Odoo.",
     icon: Puzzle,
   },
   {
     name: "Definições",
+    run: { screen: "settings" },
     group: "Sistema",
-    description: "Preferências e configuração do ambiente Odoo.",
+    description: "Configurações de cada aplicativo instalado.",
     icon: Settings2,
   },
 ];
 
 const groups: ModuleGroup[] = ["Rotina", "Comercial", "Operação", "Equipe", "Sistema"];
 
-function OdooLink({ href, className, children }: {
-  href: string;
-  className: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a className={className} href={href} target="_blank" rel="noreferrer">
-      {children}
-    </a>
-  );
-}
-
-// Módulo com tela na ERA (e permissão do usuário) abre aqui; os demais, no Odoo.
+// Módulo com tela na ERA (e permissão do usuário) abre nela; os demais, no
+// motor genérico de aplicativos. Nada leva o usuário ao Odoo.
 function ModuleLink({
   item,
-  odooUrl,
   views,
   onViewChange,
+  onRun,
   className,
   children,
 }: {
   item: EraModule;
-  odooUrl: string;
   views: EraView[];
   onViewChange: (view: EraView) => void;
+  onRun: (target: RunTarget) => void;
   className: string;
   children: React.ReactNode;
 }) {
-  if (item.view && views.includes(item.view)) {
-    const view = item.view;
-    return (
-      <button type="button" className={className} onClick={() => onViewChange(view)}>
-        {children}
-      </button>
-    );
-  }
+  const view = item.view && views.includes(item.view) ? item.view : null;
   return (
-    <OdooLink className={className} href={odooUrl}>
+    <button
+      type="button"
+      className={className}
+      onClick={() => (view ? onViewChange(view) : onRun(item.run))}
+    >
       {children}
-    </OdooLink>
+    </button>
   );
 }
 
 export function EraDashboard({
   name,
-  odooUrl,
   views,
   onViewChange,
+  onRun,
 }: {
   name: string;
-  odooUrl: string;
   views: EraView[];
   onViewChange: (view: EraView) => void;
+  onRun: (target: RunTarget) => void;
 }) {
   const shortcuts = ERA_MODULES.filter((item) => item.featured);
 
@@ -256,9 +265,9 @@ export function EraDashboard({
           <h1>Visão geral</h1>
           <p>Bem-vindo, {name.split(" ")[0]}. Acesse os processos e cadastros da sua empresa.</p>
           <div className="era-welcome-actions">
-            <OdooLink className="era-primary-link" href={odooUrl}>
-              Abrir o Odoo <ArrowUpRight size={16} />
-            </OdooLink>
+            <button type="button" className="era-primary-link" onClick={() => onRun({})}>
+              Todos os aplicativos <ArrowUpRight size={16} />
+            </button>
             <button className="era-quiet-button" onClick={() => onViewChange("modules")}>
               Ver todos os módulos
             </button>
@@ -281,7 +290,7 @@ export function EraDashboard({
         {shortcuts.map((item) => {
           const Icon = item.icon;
           return (
-            <ModuleLink key={item.name} item={item} odooUrl={odooUrl} views={views} onViewChange={onViewChange} className="era-shortcut">
+            <ModuleLink key={item.name} item={item} views={views} onViewChange={onViewChange} onRun={onRun} className="era-shortcut">
               <span className="era-module-icon"><Icon size={20} /></span>
               <span className="era-shortcut-text">
                 <strong>{item.name}</strong>
@@ -304,7 +313,7 @@ export function EraDashboard({
         <button className="era-setup-card" onClick={() => onViewChange("modules")}>
           <span className="era-setup-number">01</span>
           <strong>Explore os módulos</strong>
-          <span>Abra o Odoo e navegue usando o menu que já conhece.</span>
+          <span>Todos os aplicativos do Odoo funcionam aqui, com os mesmos menus.</span>
           <span className="era-setup-action">Ver central de módulos <ArrowUpRight size={14} /></span>
         </button>
         <button className="era-setup-card" onClick={() => onViewChange("products")}>
@@ -322,20 +331,20 @@ export function EraDashboard({
         </div>
       </section>
       <p className="era-integration-note">
-        O Odoo é o motor operacional e a fonte oficial dos cadastros. A ERA organiza os acessos; integração direta e autenticação única ainda serão construídas por etapas.
+        O Odoo é o motor operacional e a fonte oficial dos cadastros. Tudo é feito pela ERA: cadastros, aprovações, relatórios, instalação de aplicativos e configurações.
       </p>
     </div>
   );
 }
 
 export function EraModuleCenter({
-  odooUrl,
   views,
   onViewChange,
+  onRun,
 }: {
-  odooUrl: string;
   views: EraView[];
   onViewChange: (view: EraView) => void;
+  onRun: (target: RunTarget) => void;
 }) {
   const [query, setQuery] = useState("");
   const filteredModules = useMemo(() => {
@@ -352,11 +361,11 @@ export function EraModuleCenter({
         <div>
           <span className="era-eyebrow">CENTRAL ERA</span>
           <h1>Módulos</h1>
-          <p>Acesse os processos integrados à ERA ou abra os demais módulos no ambiente Odoo.</p>
+          <p>Todos os processos da empresa, com o Odoo como motor por trás.</p>
         </div>
-        <OdooLink className="era-primary-link" href={odooUrl}>
-          Abrir o Odoo <ArrowUpRight size={16} />
-        </OdooLink>
+        <button type="button" className="era-primary-link" onClick={() => onRun({})}>
+          Todos os aplicativos <ArrowUpRight size={16} />
+        </button>
       </div>
       <label className="era-module-search">
         <Search size={18} />
@@ -378,7 +387,7 @@ export function EraModuleCenter({
               {items.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <ModuleLink key={item.name} item={item} odooUrl={odooUrl} views={views} onViewChange={onViewChange} className="era-module-card">
+                  <ModuleLink key={item.name} item={item} views={views} onViewChange={onViewChange} onRun={onRun} className="era-module-card">
                     <span className="era-module-icon"><Icon size={19} /></span>
                     <span className="era-module-copy">
                       <strong>{item.name}</strong>
@@ -396,7 +405,7 @@ export function EraModuleCenter({
         <div className="era-no-modules">Nenhum módulo corresponde a “{query}”.</div>
       )}
       <div className="era-module-disclaimer">
-        Os dados operacionais permanecem no Odoo. Apenas os módulos integrados à ERA abrem dentro desta interface; os demais são acessados no Odoo.
+        Os dados operacionais permanecem no Odoo, mas todos os módulos são usados dentro da ERA.
       </div>
     </div>
   );
