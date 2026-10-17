@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { BadRequestException } from "@nestjs/common";
 import { pyContext, pyDomain } from "../services/api/src/odoo-pyval";
 import {
+  areaOf,
   decodeKey,
   modelAccess,
   safeContext,
@@ -79,4 +80,14 @@ test("o navegador não troca empresa, usuário nem idioma pelo contexto", () => 
   assert.deepEqual(decodeKey(key), { view: 12, context: { active_id: 3 } });
   assert.deepEqual(decodeKey("_"), {});
   assert.throws(() => decodeKey("%%%"), BadRequestException);
+});
+
+test("aplicativo entra no grupo do menu pela categoria do Odoo", () => {
+  assert.equal(areaOf("base.module_category_sales"), "commercial");
+  assert.equal(areaOf("base.module_category_marketing"), "commercial");
+  assert.equal(areaOf("module_category_inventory"), "operations");
+  assert.equal(areaOf("base.module_category_human_resources"), "people");
+  assert.equal(areaOf("base.module_category_productivity"), "productivity");
+  assert.equal(areaOf("base.module_category_hidden"), "other");
+  assert.equal(areaOf(undefined), "other");
 });

@@ -23,7 +23,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import type { RunTarget } from "./odoo-run";
+import { HIDDEN_APPS, type Menu, type RunTarget } from "./odoo-run";
 
 export type EraView =
   | "home"
@@ -337,23 +337,49 @@ export function EraDashboard({
   );
 }
 
+// Grupo da central para a categoria que o Odoo dá ao aplicativo.
+const AREA_GROUP: Record<NonNullable<Menu["area"]>, ModuleGroup> = {
+  commercial: "Comercial",
+  operations: "Operação",
+  people: "Equipe",
+  productivity: "Rotina",
+  other: "Sistema",
+};
+
 export function EraModuleCenter({
   views,
+  apps = [],
   onViewChange,
   onRun,
 }: {
   views: EraView[];
+  // Aplicativos instalados no Odoo: os que a lista fixa não cobre entram no
+  // grupo da sua categoria, inclusive os recém-instalados pela loja.
+  apps?: Menu[];
   onViewChange: (view: EraView) => void;
   onRun: (target: RunTarget) => void;
 }) {
   const [query, setQuery] = useState("");
   const filteredModules = useMemo(() => {
+    const covered = new Set(ERA_MODULES.map((m) => m.run.app));
+    const all: EraModule[] = [
+      ...ERA_MODULES,
+      ...apps
+        .filter((a) => !covered.has(a.xmlid) && !HIDDEN_APPS.includes(a.xmlid))
+        .map((a) => ({
+          name: a.name,
+          group: AREA_GROUP[a.area ?? "other"],
+          description: "Aplicativo instalado no Odoo.",
+          icon: Puzzle,
+          run: { app: a.xmlid },
+        })),
+    ];
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
-    if (!normalized) return ERA_MODULES;
-    return ERA_MODULES.filter((item) =>
+    if (!normalized) return all;
+    return all.filter((item) =>
       `${item.name} ${item.group} ${item.description}`.toLocaleLowerCase("pt-BR").includes(normalized),
     );
-  }, [query]);
+  }, [query, apps]);
 
   return (
     <div className="era-module-center">

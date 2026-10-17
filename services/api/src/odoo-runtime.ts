@@ -97,8 +97,31 @@ export type Menu = {
   xmlid: string;
   action: number | null;
   icon?: string;
+  area?: MenuArea;
   children: Menu[];
 };
+
+// Grupo do menu da ERA onde cada aplicativo aparece, pela categoria que o
+// próprio Odoo dá ao módulo (Vendas, Inventário, Recursos Humanos...). Assim
+// um aplicativo instalado pela ERA entra no grupo certo sem mudar código.
+export type MenuArea =
+  "commercial" | "operations" | "people" | "productivity" | "other";
+const AREAS: Record<string, MenuArea> = {
+  module_category_sales: "commercial",
+  module_category_accounting: "commercial",
+  module_category_localisation: "commercial",
+  module_category_marketing: "commercial",
+  module_category_website: "commercial",
+  module_category_inventory: "operations",
+  module_category_manufacturing: "operations",
+  module_category_services: "operations",
+  module_category_supply_chain: "operations",
+  module_category_human_resources: "people",
+  module_category_productivity: "productivity",
+};
+export function areaOf(categoryXmlid: string | undefined): MenuArea {
+  return AREAS[(categoryXmlid ?? "").replace(/^base\./, "")] ?? "other";
+}
 export type RunAction =
   | {
       kind: "window";
@@ -262,9 +285,61 @@ export class OdooRuntime {
           row.web_icon_data;
       return menu;
     };
-    return (rows.root?.children ?? [])
+    const apps = (rows.root?.children ?? [])
       .map((id) => build(id, 0))
       .filter((m): m is Menu => !!m);
+    const areas = await this.areas(
+      companyId,
+      apps.map((m) => m.xmlid.split(".")[0]),
+    ).catch(() => new Map<string, MenuArea>());
+    for (const app of apps)
+      app.area = areas.get(app.xmlid.split(".")[0]) ?? "other";
+    return apps;
+  }
+
+  // Módulo do menu → categoria do módulo → categoria principal (a de topo).
+  private async areas(companyId: number, modules: string[]) {
+    const found = await this.call<
+      Array<{ name: string; category_id: [number, string] | false }>
+    >(companyId, "ir.module.module", "search_read", [
+      [["name", "in", [...new Set(modules)]]],
+      ["name", "category_id"],
+    ]);
+    const categories = await this.call<
+      Array<{ id: number; parent_id: [number, string] | false }>
+    >(companyId, "ir.module.category", "search_read", [[], ["parent_id"]]);
+    const parent = new Map(
+      categories.map((c) => [c.id, c.parent_id ? c.parent_id[0] : null]),
+    );
+    const top = (id: number) => {
+      for (let i = 0; i < 10 && parent.get(id); i++) id = parent.get(id)!;
+      return id;
+    };
+    const tops = new Set(
+      found
+        .filter((m) => m.category_id)
+        .map((m) => top((m.category_id as [number, string])[0])),
+    );
+    const names = await this.call<Array<{ res_id: number; name: string }>>(
+      companyId,
+      "ir.model.data",
+      "search_read",
+      [
+        [
+          ["model", "=", "ir.module.category"],
+          ["module", "=", "base"],
+          ["res_id", "in", [...tops]],
+        ],
+        ["res_id", "name"],
+      ],
+    );
+    const xmlid = new Map(names.map((n) => [n.res_id, n.name]));
+    return new Map(
+      found.map((m) => [
+        m.name,
+        areaOf(m.category_id ? xmlid.get(top(m.category_id[0])) : undefined),
+      ]),
+    );
   }
 
   async action(req: AuthRequest, id: number, extra: Values = {}) {

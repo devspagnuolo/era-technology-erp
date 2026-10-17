@@ -85,6 +85,7 @@ Além das telas próprias acima, a ERA abre **qualquer aplicativo instalado no O
 - **Relatórios em PDF**: `GET /v1/odoo/run/report/<relatório>?ids=`; a API abre uma sessão web no Odoo com `ODOO_PASSWORD` (se definida) ou com a chave de API.
 - **Loja de aplicativos**: `GET /v1/odoo/run/apps` e `POST /v1/odoo/run/apps/:id/install|upgrade|uninstall`.
 - **Configurações**: o formulário `res.config.settings` de todos os aplicativos, salvo pela ERA.
+- **Menu lateral e central de módulos**: cada aplicativo instalado entra sozinho no grupo da categoria que o Odoo dá ao módulo (Vendas, Contabilidade, Marketing, Site → Comercial e financeiro; Inventário, Fabricação, Serviços → Operações; Recursos Humanos → Pessoas; Produtividade → Produtividade; o resto → Outros aplicativos). Aplicativo instalado pela loja da ERA aparece no grupo certo sem mudar código; os itens fixos do menu indicam o aplicativo que já cobrem para não repetir.
 
 Permissões: `odoo:read` (ver), `odoo:write` (criar, editar, botões, assistentes), `odoo:admin` (loja de aplicativos e configurações). Modelos técnicos (`ir.*`, `res.users`, `res.groups` etc.) ficam bloqueados: usuários e perfis são da ERA. O navegador nunca escolhe empresa, usuário ou idioma pelo contexto. Cada gravação e botão vai para a auditoria ERA (`odoo.run`).
 

@@ -1971,6 +1971,12 @@ button.era-shortcut {
 .era-nav-subitem.active .era-nav-subicon {
   color: #fff;
 }
+.era-nav-appicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: contain;
+}
 .era-external-icon {
   margin-left: auto;
   opacity: .6;
