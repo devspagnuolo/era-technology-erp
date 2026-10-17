@@ -13,7 +13,9 @@ import {
   translate,
 } from "../services/api/src/odoo";
 import { toEra } from "../services/api/src/odoo-products";
-import { stageOf } from "../services/api/src/odoo-sales";
+import { stageOf } from "../services/api/src/odoo-orders";
+import { SALES } from "../services/api/src/odoo-sales";
+import { PURCHASES } from "../services/api/src/odoo-purchases";
 import { parseArch } from "../services/api/src/odoo-arch";
 import {
   buildSchema,
@@ -65,7 +67,7 @@ test("erros de regra do Odoo chegam ao usuário; erros internos não", () => {
   assert.ok(internal instanceof BadGatewayException);
   assert.doesNotMatch(internal.message, /Traceback/);
 });
-test("produtos e vendas: leitura da lista e situação do pedido", () => {
+test("produtos e pedidos: leitura da lista e situação do pedido", () => {
   assert.deepEqual(
     toEra({
       id: 7,
@@ -95,8 +97,14 @@ test("produtos e vendas: leitura da lista e situação do pedido", () => {
     },
   );
   assert.deepEqual(
-    (["draft", "sent", "sale", "cancel"] as const).map(stageOf),
+    ["draft", "sent", "sale", "cancel"].map((s) => stageOf(SALES.stages, s)),
     ["quotation", "quotation", "order", "cancelled"],
+  );
+  assert.deepEqual(
+    ["draft", "to approve", "purchase", "done", "cancel"].map((s) =>
+      stageOf(PURCHASES.stages, s),
+    ),
+    ["quotation", "quotation", "order", "order", "cancelled"],
   );
 });
 

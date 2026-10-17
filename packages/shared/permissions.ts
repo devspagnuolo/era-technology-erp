@@ -18,6 +18,10 @@ export const permissions = [
   "sales:create",
   "sales:update",
   "sales:confirm",
+  "purchases:read",
+  "purchases:create",
+  "purchases:update",
+  "purchases:confirm",
   "customers:read",
   "customers:create",
   "customers:update",
@@ -38,6 +42,12 @@ const salesFull: PermissionKey[] = [
   "sales:update",
   "sales:confirm",
 ];
+const purchasesFull: PermissionKey[] = [
+  "purchases:read",
+  "purchases:create",
+  "purchases:update",
+  "purchases:confirm",
+];
 export const rolePresets: Record<
   string,
   { label: string; permissions: PermissionKey[] }
@@ -54,6 +64,7 @@ export const rolePresets: Record<
       "products:update",
       ...contactsFull,
       ...salesFull,
+      ...purchasesFull,
       "audit:read",
     ],
   },
@@ -66,6 +77,7 @@ export const rolePresets: Record<
       "products:update",
       ...contactsFull,
       ...salesFull,
+      ...purchasesFull,
     ],
   },
   OPERATOR: {
@@ -74,7 +86,7 @@ export const rolePresets: Record<
   },
   FINANCIAL: {
     label: "Financeiro",
-    permissions: ["core:read", "contacts:read", "sales:read"],
+    permissions: ["core:read", "contacts:read", "sales:read", "purchases:read"],
   },
   FISCAL: { label: "Fiscal", permissions: ["core:read", "contacts:read"] },
   COMMERCIAL: {
@@ -84,7 +96,7 @@ export const rolePresets: Record<
   INVENTORY: { label: "Estoque", permissions: ["products:read"] },
   PURCHASES: {
     label: "Compras",
-    permissions: ["products:read", ...contactsFull],
+    permissions: ["products:read", ...contactsFull, ...purchasesFull],
   },
 };
 export function mayGrant(

@@ -12,7 +12,7 @@ Navegador → painel ERA (/v1) → API ERA ──JSON-RPC──→ Odoo
 
 - A API ERA autentica no Odoo com um **usuário técnico** e uma **chave de API** do Odoo. A chave fica só no ambiente da API; o navegador nunca a recebe.
 - Cada empresa ERA (slug do login) é vinculada a uma empresa Odoo (`res.company`) em `ODOO_TENANT_COMPANIES`. Toda leitura e gravação usa somente essa empresa; empresa ERA sem vínculo não acessa dados do Odoo.
-- As permissões ERA (`products:*`, `contacts:*`, `sales:*`) decidem o que cada pessoa pode fazer na tela. O usuário técnico do Odoo limita o que a integração inteira pode fazer.
+- As permissões ERA (`products:*`, `contacts:*`, `sales:*`, `purchases:*`) decidem o que cada pessoa pode fazer na tela. O usuário técnico do Odoo limita o que a integração inteira pode fazer.
 - Cada criação, edição ou arquivamento é registrado na auditoria ERA com antes/depois e o identificador `<modelo>:<id>` (ex.: `sale.order:12`). Em vendas, confirmar, cancelar e reabrir também são registrados.
 - Erros de regra do Odoo (validação, acesso) aparecem para o usuário; erros internos aparecem como mensagem genérica.
 
@@ -34,8 +34,9 @@ A ERA não mantém lista fixa de campos. Cada cadastro usa a própria tela de fo
 | Produtos | `product.template` | consultar, buscar (nome, SKU, código de barras), arquivar/restaurar; cadastro completo com todas as abas do Odoo (geral, vendas, compras, inventário, fiscal); SKU único por empresa |
 | Clientes e fornecedores | `res.partner` | consultar, buscar (nome, CPF/CNPJ, e-mail, telefone), filtrar clientes/fornecedores, arquivar/restaurar; cadastro completo do Odoo (endereço, fiscal, vendas e compras, contas); CPF/CNPJ único por empresa; papéis de cliente/fornecedor exigem o Faturamento (`account`) |
 | Vendas | `sale.order` | listar e buscar (número, cliente, referência), filtrar orçamentos/pedidos/cancelados, criar e editar orçamentos com o formulário completo do Odoo (itens, condições, entrega, outras informações) e recálculo ao vivo, confirmar pedido, cancelar e voltar para orçamento; preços, impostos e totais calculados pelo Odoo; pedidos confirmados não são editados na ERA |
+| Compras | `purchase.order` | listar e buscar (número, fornecedor, referência do fornecedor), filtrar solicitações de cotação/pedidos/cancelados, criar e editar com o formulário completo do Odoo (itens, chegada prevista, condições, incoterm), confirmar pedido, cancelar e voltar para cotação; preço inicial do item vem do custo ou da tabela do fornecedor no Odoo; pedidos que exigem aprovação aparecem como "Aguardando aprovação" |
 
-Rotas: `GET /v1/odoo/status` (qualquer usuário autenticado). Para cada módulo (`products`, `contacts`, `sales`): `GET /v1/odoo/<módulo>` (lista), `GET /v1/odoo/<módulo>/form` (esquema e valores padrão de um novo registro), `GET /v1/odoo/<módulo>/:id/form`, `POST /v1/odoo/<módulo>/onchange[?id=]` (recálculo do Odoo), `POST /v1/odoo/<módulo>/lookup` (opções de um campo), `POST /v1/odoo/<módulo>` e `PATCH /v1/odoo/<módulo>/:id` (corpo `{ "values": {...}, "extra": {...} }`; `{ "active": false }` arquiva). Vendas também tem `POST /v1/odoo/sales/:id/confirm|cancel|reopen`.
+Rotas: `GET /v1/odoo/status` (qualquer usuário autenticado). Para cada módulo (`products`, `contacts`, `sales`, `purchases`): `GET /v1/odoo/<módulo>` (lista), `GET /v1/odoo/<módulo>/form` (esquema e valores padrão de um novo registro), `GET /v1/odoo/<módulo>/:id/form`, `POST /v1/odoo/<módulo>/onchange[?id=]` (recálculo do Odoo), `POST /v1/odoo/<módulo>/lookup` (opções de um campo), `POST /v1/odoo/<módulo>` e `PATCH /v1/odoo/<módulo>/:id` (corpo `{ "values": {...}, "extra": {...} }`; `{ "active": false }` arquiva). Vendas e compras também têm `POST /v1/odoo/<módulo>/:id/confirm|cancel|reopen` (permissão `<módulo>:confirm`; reabrir usa `<módulo>:update`).
 
 ## Configurar no Odoo publicado
 
@@ -63,4 +64,4 @@ O teste `tests/odoo.integration.test.ts` roda contra um Odoo de teste quando `TE
 
 ## Próximos módulos
 
-Seguir o mesmo padrão (`OdooRecords` com o formulário completo + tela ERA + auditoria + teste contra Odoo): compras (`purchase.order`), movimentações e saldos de estoque, contas a receber/pagar (`account.move`).
+Seguir o mesmo padrão (`OdooRecords` com o formulário completo + tela ERA + auditoria + teste contra Odoo): movimentações e saldos de estoque (recebimentos e entregas), contas a receber/pagar (`account.move`).

@@ -611,7 +611,8 @@ function useLookup(
             ? {
                 field: line.field,
                 q: term,
-                values: lookupValues(values),
+                // Num item, "values" traz a linha + parent; a API quer o pedido.
+                values: lookupValues((values.parent as Values) ?? values),
                 line: { field: def.name, values: lookupValues(line.values) },
               }
             : { field: def.name, q: term, values: lookupValues(values) },
