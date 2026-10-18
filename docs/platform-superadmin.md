@@ -6,7 +6,7 @@ Disponibilizar um acesso global do proprietário em `https://erp.eratechnology.c
 
 ## Estado atual
 
-Na versão atual documentada, a autenticação ERA é tenant-scoped: o usuário informa o identificador público da empresa; o JWT/sessão inclui `tenantId`; a autorização consulta sessão e permissões. A arquitetura não tem papel global superadmin. O caminho `/<slug>` é login de empresa e permanece inalterado. O login ERA continua separado do login Odoo, e o Odoo continua mestre dos registros operacionais.
+Na versão atual, a autenticação ERA é tenant-scoped: o usuário informa o identificador público da empresa; o JWT/sessão inclui `tenantId`; a autorização consulta sessão e permissões. A arquitetura ainda não implementa papel global superadmin nem painel de gestão de tenants. O caminho `/<slug>` é login de empresa; a raiz atualmente reutiliza o app tenant e deverá passar a ser login exclusivo do proprietário. O login ERA continua separado do login Odoo, e o Odoo continua mestre dos registros operacionais.
 
 ## Rotas pretendidas
 
@@ -43,7 +43,7 @@ A sessão global precisa ser isolada das sessões de tenant (cookie/token, issue
 
 1. Implementar schema/migração, API e interface em branch separada; manter o login atual por slug.
 2. Adicionar variáveis secretas no Render manualmente ou por mecanismo seguro:
-   - `PLATFORM_ADMIN_EMAIL`: e-mail inicial do proprietário.
+   - `PLATFORM_ADMIN_EMAIL`: `rafaelspagnuologarcia@gmail.com` (identificador informado pelo proprietário; e-mail não é segredo).
    - `PLATFORM_ADMIN_PASSWORD_HASH` ou fluxo de bootstrap de uso único: nunca senha em claro.
    - Segredo/chaves de sessão de plataforma independentes dos tokens tenant.
    Segredos não devem ser commitados. Preferir bootstrap de uso único que force troca de senha e configuração de MFA; não deixar segredo de provisionamento ativo após uso.
@@ -68,7 +68,7 @@ Faturamento/cobrança automática, provisionamento de banco isolado por cliente,
 
 ## Decisões/segredos pendentes do proprietário
 
-- E-mail do superadministrador (usar o e-mail corporativo desejado).
+- E-mail do superadministrador definido: `rafaelspagnuologarcia@gmail` (senha será inserida pelo proprietário diretamente como segredo privado no Render; não armazenar no GitHub).
 - Configuração de MFA e canal seguro de recuperação.
 - Confirmação do fluxo de domínio/tenant: rota `/<slug>` já é a decisão adotada; domínios dedicados de cliente ficam para fase futura.
 - Processo comercial que define quando ativar/suspender um contrato.
