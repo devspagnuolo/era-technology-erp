@@ -6,6 +6,7 @@ import { AuthModule } from "./auth.module";
 import { CoreModule } from "./core.module";
 import { ProductsModule } from "./products.module";
 import { OdooModule } from "./odoo.module";
+import { PlatformModule } from "./platform.module";
 import { AccessGuard, Public } from "./auth";
 @Controller()
 class HealthController {
@@ -16,7 +17,7 @@ class HealthController {
   }
 }
 @Module({
-  imports: [DatabaseModule, AuthModule, CoreModule, ProductsModule, OdooModule],
+  imports: [DatabaseModule, AuthModule, CoreModule, ProductsModule, OdooModule, PlatformModule],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AccessGuard }],
 })

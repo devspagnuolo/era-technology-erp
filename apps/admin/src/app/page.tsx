@@ -1,4 +1,4 @@
-import EraApp from "../components/era-app";
+import { PlatformApp } from "../components/platform-app";
 export default function Page() {
-  return <EraApp />;
+  return <PlatformApp />;
 }
