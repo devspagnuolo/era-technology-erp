@@ -1,75 +1,39 @@
-# Acesso superadministrador ERA e gestão de empresas
+# Superadmin ERA e gestão de empresas
 
-## Objetivo
+O endereço `https://erp.eratechnology.com.br/` é o login global do proprietário. O painel fica em `/platform`. Cada empresa continua acessando `/<slug>` com sua própria conta ERA. A conta global não é uma conta Odoo nem entra automaticamente em uma empresa.
 
-Disponibilizar um acesso global do proprietário em `https://erp.eratechnology.com.br/`, sem informar empresa, e um painel administrativo ERA para gerir os tenants que contratam o ERP. Esse acesso é distinto do login operacional de cada empresa (`/<slug>`) e não deve herdar permissões ou dados de um tenant.
+## O que esta mudança implementa
 
-## Estado atual
+- Login global por e-mail e senha, sem campo Empresa, autenticado pela API privada ERA.
+- Sessão separada em cookie `HttpOnly`, `Secure` em produção e `SameSite=Strict`, válida por oito horas. A assinatura usa `PLATFORM_SESSION_SECRET`; rotacioná-lo invalida todas as sessões globais.
+- Proteção de origem em todas as operações que alteram estado, limite local de tentativas de login e mensagens genéricas para credenciais inválidas.
+- Painel que lista empresas e seus administradores iniciais, cria empresa e administrador em uma transação, edita nome, suspende e reativa o acesso.
+- Suspensão revoga sessões ERA existentes e impede novos logins/renovações pela verificação atual de `tenant.active`.
+- Auditoria de criação, edição, suspensão e reativação no `AuditLog` do tenant alvo.
+- Slug único, minúsculo e imutável; rotas reservadas não podem ser usadas como slug.
 
-Na versão atual, a autenticação ERA é tenant-scoped: o usuário informa o identificador público da empresa; o JWT/sessão inclui `tenantId`; a autorização consulta sessão e permissões. A arquitetura ainda não implementa papel global superadmin nem painel de gestão de tenants. O caminho `/<slug>` é login de empresa; a raiz atualmente reutiliza o app tenant e deverá passar a ser login exclusivo do proprietário. O login ERA continua separado do login Odoo, e o Odoo continua mestre dos registros operacionais.
+## Variáveis privadas no Render
 
-## Rotas pretendidas
+Serviço: `era-api`. Configurar no painel **Environment**; não colocar valores secretos no repositório.
 
-- `GET /`: login do proprietário, sem campo Empresa.
-- `POST /v1/platform/auth/login`: autenticação exclusiva do superadmin.
-- `GET /platform`: painel protegido de administração da plataforma.
-- `GET /platform/companies`: listar/filtrar empresas contratantes.
-- `POST /platform/companies`: cadastrar novo tenant/empresa e seu slug.
-- `PATCH /platform/companies/:id`: editar dados administrativos e status.
-- `POST /platform/companies/:id/suspend` e `/activate`: suspender/reativar acesso sem apagar dados.
-- `GET /:slug`: autenticação tenant-scoped existente, sem mudança de semântica.
+| Chave | Valor |
+| --- | --- |
+| `PLATFORM_ADMIN_EMAIL` | `rafaelspagnuologarcia@gmail.com` |
+| `PLATFORM_ADMIN_PASSWORD` | O proprietário insere depois, diretamente no Render. Até existir, o login global fica desabilitado. |
+| `PLATFORM_SESSION_SECRET` | Valor aleatório com pelo menos 32 caracteres, separado de `JWT_SECRET`. |
 
-Não usar a rota raiz para entrar automaticamente em uma empresa, nem permitir que um administrador de empresa acesse `/platform`.
+As três chaves devem estar presentes no serviço de API. Ao salvar/alterar a senha, implantar a configuração. Não usar a senha ERA da empresa demo nem credenciais do Odoo como senha global. A senha fica somente no ambiente privado do Render.
 
-## Modelo e escopo
+## Operação
 
-Criar identidade de plataforma separada da tabela de usuários tenant, por exemplo `PlatformAdmin` (email único, hash forte de senha, MFA habilitável, estado e timestamps) e sessão/tokens de plataforma separados. Claims de plataforma não devem conter tenantId escolhido pelo cliente. Autorizações de plataforma devem ser explicitamente verificadas por guards próprios; não aceitar papel, tenantId ou permissões vindos do corpo do navegador.
+1. Acessar `/` e autenticar com o e-mail do proprietário.
+2. Em **Nova empresa**, preencher nome, identificador, administrador inicial e senha inicial com pelo menos 12 caracteres. A senha inicial é enviada apenas para criar o hash do administrador e não aparece na listagem.
+3. O administrador poderá entrar em `/<slug>` no ERA. O tenant não é provisionado automaticamente no Odoo; mapear sua empresa Odoo separadamente antes de habilitar módulos operacionais.
+4. **Suspender** bloqueia login e sessões ERA da empresa; **Reativar** restaura a possibilidade de login, sem criar nova conta.
+5. Para trocar a senha global, atualizar `PLATFORM_ADMIN_PASSWORD` no Render. Para encerrar sessões globais, rotacionar `PLATFORM_SESSION_SECRET`.
 
-Empresas geridas no painel correspondem ao Tenant existente. Reutilizar Tenant e relações existentes em vez de duplicar empresa operacional; armazenar no perfil administrativo apenas dados necessários à contratação/onboarding (nome, slug imutável/único, contato administrativo, status, datas e observação operacional restrita). Não armazenar dados de pagamento ou cartão no protótipo. Status suspenso deve bloquear novas sessões e revogar sessões ativas do tenant de forma transacional, sem excluir registros.
+## Limites e próximos controles
 
-A sessão global precisa ser isolada das sessões de tenant (cookie/token, issuer/audience, chaves/segredos e guard). Recomendação: cookie HttpOnly, Secure, SameSite=Strict para plataforma; proteção CSRF nas mutações; limite de tentativas e atraso progressivo no login. Nunca colocar token em localStorage ou credenciais em `NEXT_PUBLIC_*`. Senhas devem usar algoritmo moderno de hash já adotado/compatível no backend e reset por fluxo controlado. Nunca criar senha padrão, segredo fixo, credencial em código ou seed público. MFA é requisito antes de uso comercial com dados reais; manter auditoria imutável das ações administrativas, sem registrar segredos.
+O painel gerencia cadastro e acesso ERA. Não implementa cobrança, contratos financeiros, provisionamento Odoo, e-mail de convite ou recuperação de senha. O limite de tentativas é por instância; antes de uso comercial com clientes reais, adicionar limite distribuído, MFA do proprietário, teste de backup/restauração e revisão de isolamento Odoo. O painel lista até 200 tenants; paginação será necessária ao crescer.
 
-## Segurança multiempresa
-
-- Não adicionar uma rota que liste dados operacionais ou usuários entre empresas.
-- Painel inicial mostra apenas metadados administrativos necessários (empresa, slug, status, contato, criação/último acesso administrativo se disponível).
-- Todas as operações por empresa são autorizadas por guard de plataforma; endpoints tenant existentes continuam usando tenant da sessão, nunca tenant do parâmetro/body.
-- Suspender tenant impede login e refresh, revoga sessões e não apaga dados.
-- Slug deve validar formato, ser único case-insensitive e reservar nomes de sistema, `platform`, `admin`, `api`, `v1`, `docs`, `login`, `health`.
-- Auditar criar/editar/suspender/reativar tenant com ator, horário, alvo e campos alterados; ocultar dados sensíveis.
-- Testes negativos obrigatórios: tenant user não acessa plataforma; plataforma não obtém sessão tenant implicitamente; IDs de outro tenant não podem ser usados em APIs tenant; tenant suspenso não pode autenticar/renovar; token tenant não serve em guard plataforma e vice-versa.
-
-## Implantação e bootstrap
-
-1. Implementar schema/migração, API e interface em branch separada; manter o login atual por slug.
-2. Adicionar variáveis secretas no Render manualmente ou por mecanismo seguro:
-   - `PLATFORM_ADMIN_EMAIL`: `rafaelspagnuologarcia@gmail.com` (identificador informado pelo proprietário; e-mail não é segredo).
-   - `PLATFORM_ADMIN_PASSWORD_HASH` ou fluxo de bootstrap de uso único: nunca senha em claro.
-   - Segredo/chaves de sessão de plataforma independentes dos tokens tenant.
-   Segredos não devem ser commitados. Preferir bootstrap de uso único que force troca de senha e configuração de MFA; não deixar segredo de provisionamento ativo após uso.
-3. Rodar migração compatível e backup validado antes de ativar. Verificar rollback e recuperação; não sincronizar Blueprint automaticamente caso crie/alterne serviços ou gere custo.
-4. Executar CI (testes, build, lint/typecheck) e revisão de segurança; deploy em Render após aprovação.
-5. Configurar conta do proprietário e MFA fora do GitHub; testar login global e caminhos por tenant.
-6. Definir política operacional de recuperação de acesso e registro de auditoria.
-
-## Critérios de aceite
-
-- `/` apresenta login sem seletor/campo de empresa e não revela se um email existe.
-- Superadmin autentica na raiz e chega ao painel; usuário tenant não consegue autenticar nem acessar essas rotas.
-- Painel permite listar, cadastrar, editar dados administrativos e suspender/reativar empresas sem exclusão de dados.
-- Login tenant em `/<slug>` continua funcionando e recebe apenas o tenant correspondente.
-- Sessões, permissões e segredos são separados; ações administrativas auditadas.
-- Testes de autorização, isolamento, validação de slug, status de tenant e sessão expirada passam.
-- Nenhuma senha, chave ou dado real de cliente aparece no repositório.
-
-## Fora do escopo desta etapa
-
-Faturamento/cobrança automática, provisionamento de banco isolado por cliente, SSO para Odoo, plano comercial e integração automática com gateway de pagamento. A gestão inicial controla o cadastro/status do tenant ERA; acesso e dados operacionais do Odoo precisam de provisionamento e isolamento multiempresa próprio, a configurar e validar separadamente.
-
-## Decisões/segredos pendentes do proprietário
-
-- E-mail do superadministrador definido: `rafaelspagnuologarcia@gmail` (senha será inserida pelo proprietário diretamente como segredo privado no Render; não armazenar no GitHub).
-- Configuração de MFA e canal seguro de recuperação.
-- Confirmação do fluxo de domínio/tenant: rota `/<slug>` já é a decisão adotada; domínios dedicados de cliente ficam para fase futura.
-- Processo comercial que define quando ativar/suspender um contrato.
-- Dados mínimos de contato e política de retenção.
+Não inserir senhas, chaves ou dados operacionais de clientes no GitHub. O banco ERA e Odoo continuam separados. Odoo mantém a fonte dos dados operacionais e suas próprias permissões multiempresa.
