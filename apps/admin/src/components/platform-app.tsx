@@ -6,7 +6,7 @@ import styles from "./platform-app.module.css";
 type Company = { id: string; name: string; slug: string; active: boolean; createdAt: string; users?: { name: string; email: string; active: boolean }[] };
 type Owner = { email: string };
 type Activity = { id: string; company: string; actor: string; action: string; createdAt: string };
-type Overview = { metrics: { companies: number; activeCompanies: number; suspendedCompanies: number; activeUsers: number; activeSessions: number }; recentActivity: Activity[]; companies: Company[]; generatedAt: string };
+type Overview = { odoo: { status: "connected" | "unconfigured" | "unavailable"; version?: string }; metrics: { companies: number; activeCompanies: number; suspendedCompanies: number; activeUsers: number; activeSessions: number }; recentActivity: Activity[]; companies: Company[]; generatedAt: string };
 type CreateForm = { name: string; slug: string; adminName: string; adminEmail: string; adminPassword: string };
 const blank: CreateForm = { name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" };
 const labels: Record<string, string> = { create_company: "Empresa cadastrada", update_company: "Cadastro atualizado", activate_company: "Acesso reativado", suspend_company: "Acesso suspenso" };
@@ -106,7 +106,7 @@ export function PlatformApp() {
           </div>
           <div className={styles.columns}><section className={styles.panel}><div className={styles.panelHead}><div><h2>Empresas recentes</h2><p>Situação das contas cadastradas.</p></div><button className={styles.textButton} onClick={() => setSection("companies")}>Ver todas →</button></div>
               <CompanyTable items={companies.slice(0, 6)} busy={busy} onEdit={changeCompany} /></section><ActivityPanel items={overview?.recentActivity ?? []} /></div>
-          <section className={styles.systemPanel}><div><span className={styles.liveDot} /><strong>Banco ERA consultado</strong><small>Atualizado em {overview?.generatedAt ? date(overview.generatedAt) : "—"}</small></div><span>Indicadores de cadastros e sessões ERA</span></section>
+          <section className={styles.systemPanel}><div><span className={styles.liveDot} /><strong>Banco ERA consultado</strong><small>Atualizado em {overview?.generatedAt ? date(overview.generatedAt) : "—"}</small></div><div className={styles.odooStatus}><strong>Integração Odoo</strong><span className={overview?.odoo.status === "connected" ? styles.connected : styles.disconnected}>{overview?.odoo.status === "connected" ? "Conectada" : overview?.odoo.status === "unconfigured" ? "Não configurada" : "Indisponível"}</span>{overview?.odoo.version && <small>Versão {overview.odoo.version}</small>}</div></section>
         </>}
         {section === "companies" && <>
           <div className={styles.pageTitle}><div><p className={styles.kicker}>CARTEIRA DE CLIENTES</p><h1>Clientes e empresas</h1><p>Gerencie ambientes, responsáveis e situação de acesso.</p></div>
