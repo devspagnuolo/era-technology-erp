@@ -46,3 +46,5 @@ O painel oferece visão gerencial com total de empresas, acessos ativos e suspen
 Os indicadores são calculados a partir do banco ERA no momento da consulta. “Banco ERA consultado” significa que a leitura do painel conseguiu consultar esses registros. Não representa monitoramento contínuo, disponibilidade do Odoo ou SLA.
 
 A plataforma ainda não mantém dados de contrato, cobrança, receita, planos ou uso de recursos Odoo. Esses indicadores não são apresentados como se fossem dados reais. Devem ser incorporados após definir a fonte e o fluxo comercial.
+
+O painel também consulta a versão do servidor Odoo pela integração configurada e indica se a conexão está conectada, não configurada ou indisponível. Essa consulta é pontual ao abrir/atualizar a visão gerencial; não é um monitor contínuo nem substitui alertas de disponibilidade.
