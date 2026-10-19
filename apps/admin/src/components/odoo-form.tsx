@@ -18,6 +18,7 @@ import { check } from "../../../../packages/shared/odoo-expr";
 export type FieldDef = {
   name: string;
   label: string;
+  help?: string;
   type: string;
   widget?: string;
   required: boolean;
@@ -504,6 +505,7 @@ function OdooField({
         {required && !locked && <span className="required">*</span>}
       </label>
       {input}
+      {def.help && <small className="odoo-field-help">{def.help}</small>}
     </div>
   );
 }
