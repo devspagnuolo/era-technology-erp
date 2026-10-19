@@ -102,6 +102,31 @@ export class PlatformService {
     res.clearCookie(COOKIE, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/v1/platform" });
     return { ok: true };
   }
+  async overview(req: Request) {
+    this.authorize(req);
+    const companies = await this.db.tenant.findMany({
+      select: { id: true, name: true, slug: true, active: true, createdAt: true },
+      orderBy: { createdAt: "desc" }, take: 200,
+    });
+    const ids = companies.map(c => c.id);
+    const now = new Date();
+    const [users, sessions, activity] = await Promise.all([
+      ids.length ? this.db.user.count({ where: { tenantId: { in: ids }, active: true } }) : 0,
+      ids.length ? this.db.session.count({ where: { tenantId: { in: ids }, revokedAt: null, expiresAt: { gt: now } } }) : 0,
+      this.db.auditLog.findMany({ where: { module: "platform" }, orderBy: { createdAt: "desc" }, take: 12,
+        select: { id: true, tenantId: true, actorId: true, action: true, createdAt: true } }),
+    ]);
+    const names = new Map(companies.map(c => [c.id, c.name]));
+    return {
+      companies,
+      metrics: { companies: companies.length, activeCompanies: companies.filter(c => c.active).length,
+        suspendedCompanies: companies.filter(c => !c.active).length, activeUsers: users, activeSessions: sessions },
+      recentActivity: activity.map(a => ({ id: a.id, company: names.get(a.tenantId) ?? "Empresa removida",
+        actor: a.actorId, action: a.action, createdAt: a.createdAt })),
+      generatedAt: now.toISOString(),
+    };
+  }
+
   async companies(req: Request) {
     this.authorize(req);
     return this.db.tenant.findMany({
@@ -166,6 +191,7 @@ export class PlatformController {
     return this.platform.logout(req, res);
   }
   @Get("me") me(@Req() req: Request) { return { email: this.platform.authorize(req) }; }
+  @Get("overview") overview(@Req() req: Request) { return this.platform.overview(req); }
   @Get("companies") companies(@Req() req: Request) { return this.platform.companies(req); }
   @Post("companies") create(@Req() req: Request, @Body() body: unknown) { return this.platform.create(req, body); }
   @Patch("companies/:id") update(@Req() req: Request, @Param("id") id: string, @Body() body: unknown) {
