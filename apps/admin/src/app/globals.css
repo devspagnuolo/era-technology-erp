@@ -2770,3 +2770,6 @@ input:focus {
     flex-wrap: nowrap;
   }
 }
+
+.odoo-field-help{display:block;color:#63766b;font-size:11px;font-weight:400;line-height:1.45;white-space:pre-line}
+.odoo-field.boolean>.odoo-field-help{flex-basis:100%;margin-left:25px}
