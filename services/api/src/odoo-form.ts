@@ -33,6 +33,7 @@ export type FieldDef = {
   domain?: string | unknown[];
   onChange?: boolean;
   section: string;
+  help?: string;
   group?: string;
   placeholder?: string;
   sub?: SubSchema;
