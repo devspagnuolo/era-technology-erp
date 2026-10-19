@@ -5,6 +5,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { Database } from "./database";
+import { OdooClient } from "./odoo";
 import { Public, parse } from "./auth";
 import { rolePresets } from "../../../packages/shared/permissions";
 
@@ -23,7 +24,7 @@ const attempts = new Map<string, { count: number; until: number }>();
 
 @Injectable()
 export class PlatformService {
-  constructor(@Inject(Database) private db: Database) {}
+  constructor(@Inject(Database) private db: Database, @Inject(OdooClient) private odoo: OdooClient) {}
   private secret() {
     const secret = process.env.PLATFORM_SESSION_SECRET;
     if (!secret || secret.length < 32) throw new UnauthorizedException("Acesso administrativo indisponível");
@@ -105,7 +106,7 @@ export class PlatformService {
   async overview(req: Request) {
     this.authorize(req);
     const [companies, total, activeCompanies, suspendedCompanies, activeTenants] = await Promise.all([
-      this.db.tenant.findMany({ select: { id: true, name: true, slug: true, active: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 200 }),
+      this.db.tenant.findMany({ select: { id: true, name: true, slug: true, active: true, createdAt: true, users: { where: { role: "TENANT_ADMIN" }, select: { name: true, email: true, active: true }, take: 1 } }, orderBy: { createdAt: "desc" }, take: 200 }),
       this.db.tenant.count(),
       this.db.tenant.count({ where: { active: true } }),
       this.db.tenant.count({ where: { active: false } }),
@@ -119,9 +120,13 @@ export class PlatformService {
       this.db.auditLog.findMany({ where: { module: "platform" }, orderBy: { createdAt: "desc" }, take: 12,
         select: { id: true, tenantId: true, actorId: true, action: true, createdAt: true } }),
     ]);
+    const odoo = !this.odoo.configured ? { status: "unconfigured" as const } :
+      await this.odoo.version().then(version => ({ status: "connected" as const, version }))
+        .catch(() => ({ status: "unavailable" as const }));
     const names = new Map(companies.map(c => [c.id, c.name]));
     return {
       companies,
+      odoo,
       metrics: { companies: total, activeCompanies, suspendedCompanies, activeUsers: users, activeSessions: sessions },
       recentActivity: activity.map(a => ({ id: a.id, company: names.get(a.tenantId) ?? "Empresa removida",
         actor: a.actorId, action: a.action, createdAt: a.createdAt })),
