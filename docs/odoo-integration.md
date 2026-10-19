@@ -20,7 +20,7 @@ Navegador → painel ERA (/v1) → API ERA ──JSON-RPC──→ Odoo
 
 A ERA não mantém lista fixa de campos. Cada cadastro usa a própria tela de formulário do Odoo (`get_views`), então tudo o que os módulos instalados acrescentam (inclusive a localização brasileira: dados fiscais, NCM, CEST, endereço) aparece na ERA:
 
-- `services/api/src/odoo-form.ts` lê a tela e monta o esquema: abas (`page`), grupos, campos obrigatórios, somente leitura e ocultos (inclusive as condições do Odoo 17+, avaliadas por `packages/shared/odoo-expr.ts` na API e no painel), listas de itens (`one2many`) com suas colunas.
+- `services/api/src/odoo-form.ts` lê a tela e monta o esquema: abas (`page`), grupos, campos obrigatórios, somente leitura e ocultos (inclusive as condições do Odoo 17+, avaliadas por `packages/shared/odoo-expr.ts` na API e no painel), listas de itens (`one2many`) com suas colunas e a ajuda de campo que o Odoo fornece. A ERA exibe esse texto abaixo do campo; se o Odoo não definir ajuda, a ERA não inventa uma explicação específica.
 - Valores padrão, recálculos (preço, impostos, descrição do item) e listas de opções vêm do Odoo: `onchange` e `name_search` com o domínio da tela, sempre restritos à empresa vinculada.
 - A gravação aceita só campos presentes na tela, ignora os somente leitura, transforma itens em comandos do Odoo e confere que registros relacionados pertencem à empresa.
 - `services/api/src/odoo-records.ts` junta isso por modelo; cada módulo só declara o modelo, campos que a ERA esconde (empresa) e regras próprias (SKU único, CPF/CNPJ único, papéis).
@@ -53,7 +53,7 @@ Rotas: `GET /v1/odoo/status` (qualquer usuário autenticado). Para cada módulo 
 
 ## Configurar no Odoo publicado
 
-1. Instalar o aplicativo **Inventário** (`stock`), que traz Produtos. A POC atual só tem `base`, `l10n_br_base` e `era_connector`.
+1. O banco Odoo da POC é inicializado por padrão somente com `base`, `l10n_br_base` e `era_connector`; as telas operacionais dependem da instalação dos aplicativos Community correspondentes. Para a cobertura documentada, instalar e validar os aplicativos aplicáveis: Inventário (`stock`), Vendas (`sale_management`), Compras (`purchase`), Faturamento (`account`), CRM (`crm`), Fabricação (`mrp`), Projeto (`project`), Funcionários (`hr`), Manutenção (`maintenance`), Folga (`hr_holidays`) e Despesas (`hr_expense`). Os formulários fiscais brasileiros também dependem dos módulos OCA compatíveis com Odoo 18 presentes no caminho de addons e de sua instalação/configuração. Instalar em Odoo Community não habilita recursos exclusivos do Enterprise.
 2. Criar o usuário técnico (ex.: `era-integracao`) com acesso à empresa desejada e aos grupos *Inventário / Administrador*, *Vendas / Administrador*, *Compras / Administrador*, *Faturamento / Administrador*, *Fiscal / Gerente*, *Fabricação / Administrador*, *Projeto / Administrador*, *Funcionários / Administrador*, *Manutenção / Gerente de equipamentos*, *Folga / Administrador* e *Despesas / Administrador* (sem eles, o Odoo esconde as abas desses módulos). O usuário técnico precisa de um e-mail (o Odoo exige autor com e-mail nas mensagens que as ações registram no histórico). No Odoo da POC isso é feito por `odoo/provision_integration.py` a cada deploy.
 3. Entrar como esse usuário → Preferências → Segurança da conta → **Nova chave de API**. Usuários comuns precisam de data de expiração; anote a data para rotacionar.
 4. No Render, serviço `era-api`, preencher `ODOO_DB`, `ODOO_LOGIN`, `ODOO_API_KEY` e `ODOO_TENANT_COMPANIES` (ex.: `era-demo:1`). `ODOO_URL` já aponta para o Odoo da POC.
@@ -66,7 +66,7 @@ Sem essas variáveis, a tela de produtos explica o que falta, sem quebrar o rest
 docker compose -f odoo/docker-compose.poc.yml up   # ou um container odoo:18.0 com o módulo stock
 ```
 
-O teste `tests/odoo.integration.test.ts` roda contra um Odoo de teste quando `TEST_ODOO_URL`, `TEST_ODOO_DB`, `TEST_ODOO_LOGIN`, `TEST_ODOO_API_KEY` e `TEST_ODOO_COMPANIES` (duas empresas, ex.: `a:1,b:2`) estão definidas. Ele valida o formulário completo, criação, recálculo de itens, busca, isolamento entre empresas, SKU duplicado, edição, arquivamento e auditoria. Nunca apontar para o Odoo de produção.
+O teste `tests/odoo.integration.test.ts` roda contra um Odoo de teste quando `TEST_ODOO_URL`, `TEST_ODOO_DB`, `TEST_ODOO_LOGIN`, `TEST_ODOO_API_KEY` e `TEST_ODOO_COMPANIES` (duas empresas, ex.: `a:1,b:2`) estão definidas. Sem essas variáveis, os casos são ignorados: um CI verde não comprova a conexão ao Odoo. A suíte cria e altera registros operacionais; usar exclusivamente banco descartável, nunca o Odoo de produção. Cobertura de CRUD de um conjunto de modelos também não prova paridade de cada ação/tela de todos os aplicativos.
 
 ## Limites conhecidos
 
@@ -99,3 +99,6 @@ Atenção:
 - Visões kanban, calendário, pivô e gráfico aparecem como lista. Painéis próprios do Odoo (ações de cliente, como Painéis em planilha) mostram um aviso; Conversas aparecem como lista de canais com histórico. Filtros com datas relativas (ex.: "este mês") não são exibidos. Links externos de ações (`act_url`) não são abertos.
 
 Etapas que antes ficavam no Odoo (ex.: lotes e números de série na validação de estoque, backorder na fabricação) agora são feitas pelos assistentes em **Todos os aplicativos**.
+
+
+O CI de 19/10/2026 passou em testes e build, mas não tinha variáveis `TEST_ODOO_*`; portanto, sua execução não validou chamadas ao Odoo. A página pública do Odoo respondeu com a tela de login, o que confirma apenas a disponibilidade HTTP do serviço. A verificação da integração com credenciais e dados permanece pendente até executar os cenários em um banco Odoo de teste isolado.
