@@ -4,14 +4,15 @@ ERP em construção com Odoo Community como motor operacional e uma interface pr
 
 ## Estado atual e limites
 
-- A aplicação pública ERA é um painel de acesso e administração inicial.
-- A central apresenta 19 áreas e abre o ambiente do Odoo. Hoje os cartões levam ao seletor de aplicativos; não são deep links garantidos para cada módulo.
-- Produtos e estoque encaminham ao Inventário do Odoo. O Odoo é a fonte oficial dos cadastros e operações.
-- Não há sincronização de dados, API Odoo integrada nem login único. O acesso ERA e o acesso Odoo são separados.
-- A API e o PostgreSQL ERA continuam como base do protótipo de autenticação, permissões, usuários/filiais e auditoria. O antigo catálogo de produtos dessa API é dado de demonstração e não é fonte de verdade do Odoo.
-- Fidelizei, Type Digital e Nexo CRM são integrações futuras; ainda não estão conectadas.
+- O ERA tem uma interface própria, autenticação e permissões por empresa, painel do proprietário e uma API que acessa o Odoo por JSON-RPC.
+- Produtos, contatos, vendas, compras, estoque, faturas, CRM, fabricação, projetos, tarefas, funcionários, manutenção, folgas e despesas têm fluxos ERA específicos. A tela de formulários consulta o esquema e os recálculos do Odoo; o modo “Todos os aplicativos” lê menus e ações do banco Odoo.
+- A API do ERA usa PostgreSQL para identidade, permissões e auditoria. Os registros operacionais ficam no Odoo.
+- A integração requer credenciais técnicas e vínculo entre cada slug ERA e uma empresa res.company em ODOO_TENANT_COMPANIES. A autenticação no ERA e no Odoo são separadas; não há SSO.
+- A cobertura não é 1:1 em todos os aplicativos: visões kanban/calendário/pivô/gráfico são apresentadas em lista, alguns painéis interativos e links externos não são reproduzidos, e determinadas ações ou assistentes ainda exigem validação no banco e módulos reais. Consulte os limites detalhados em [integração Odoo](docs/odoo-integration.md).
+- Os testes que criam registros no Odoo só rodam com TEST_ODOO_URL, TEST_ODOO_DB, TEST_ODOO_LOGIN, TEST_ODOO_API_KEY e TEST_ODOO_COMPANIES. Sem um banco de testes isolado configurado, o CI não valida a integração ao vivo.
+- Fidelizei, Type Digital e Nexo CRM ainda não estão conectadas.
 
-Consulte [arquitetura e limites](docs/architecture.md), [roadmap](docs/roadmap.md), [operação no Render](docs/render-deployment.md) e [validações](docs/validation.md).
+Consulte [arquitetura e limites](docs/architecture.md), [roadmap](docs/roadmap.md), [operação no Render](docs/render-deployment.md), [integração Odoo](docs/odoo-integration.md) e [validações](docs/validation.md).
 
 ## Fluxo de desenvolvimento: GitHub → Render
 
