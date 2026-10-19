@@ -104,11 +104,14 @@ export class PlatformService {
   }
   async overview(req: Request) {
     this.authorize(req);
-    const companies = await this.db.tenant.findMany({
-      select: { id: true, name: true, slug: true, active: true, createdAt: true },
-      orderBy: { createdAt: "desc" }, take: 200,
-    });
-    const ids = companies.map(c => c.id);
+    const [companies, total, activeCompanies, suspendedCompanies, activeTenants] = await Promise.all([
+      this.db.tenant.findMany({ select: { id: true, name: true, slug: true, active: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 200 }),
+      this.db.tenant.count(),
+      this.db.tenant.count({ where: { active: true } }),
+      this.db.tenant.count({ where: { active: false } }),
+      this.db.tenant.findMany({ where: { active: true }, select: { id: true } }),
+    ]);
+    const ids = activeTenants.map(c => c.id);
     const now = new Date();
     const [users, sessions, activity] = await Promise.all([
       ids.length ? this.db.user.count({ where: { tenantId: { in: ids }, active: true } }) : 0,
@@ -119,14 +122,12 @@ export class PlatformService {
     const names = new Map(companies.map(c => [c.id, c.name]));
     return {
       companies,
-      metrics: { companies: companies.length, activeCompanies: companies.filter(c => c.active).length,
-        suspendedCompanies: companies.filter(c => !c.active).length, activeUsers: users, activeSessions: sessions },
+      metrics: { companies: total, activeCompanies, suspendedCompanies, activeUsers: users, activeSessions: sessions },
       recentActivity: activity.map(a => ({ id: a.id, company: names.get(a.tenantId) ?? "Empresa removida",
         actor: a.actorId, action: a.action, createdAt: a.createdAt })),
       generatedAt: now.toISOString(),
     };
   }
-
   async companies(req: Request) {
     this.authorize(req);
     return this.db.tenant.findMany({
