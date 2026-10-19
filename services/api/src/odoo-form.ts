@@ -67,6 +67,7 @@ type Meta = {
   name: string;
   type: string;
   string: string;
+  help?: string;
   required?: boolean;
   readonly?: boolean;
   selection?: Array<[string, string]>;
@@ -423,6 +424,7 @@ function fieldDef(
   if (invisible) def.invisibleIf = invisible;
   if (group) def.group = group;
   if (attrs.placeholder) def.placeholder = attrs.placeholder;
+  if (typeof info.help === "string" && info.help.trim()) def.help = info.help.trim().slice(0, 1200);
   if (info.selection) def.selection = info.selection;
   if (info.relation) def.relation = info.relation;
   const domain = attrs.domain ?? info.domain;
