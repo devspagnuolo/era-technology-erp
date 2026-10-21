@@ -13,6 +13,8 @@ model Tenant {
   slug                  String                 @unique
   active                Boolean                @default(true)
   settings              Json?
+  // Empresa (res.company) criada no Odoo para este tenant.
+  odooCompanyId         Int?                   @unique
   createdAt             DateTime               @default(now())
   users                 User[]
   branches              Branch[]

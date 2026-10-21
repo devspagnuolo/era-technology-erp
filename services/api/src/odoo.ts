@@ -61,6 +61,11 @@ export class OdooClient {
     return this.config !== null;
   }
 
+  // Vínculo fixo por variável de ambiente (empresas anteriores ao painel).
+  mappedCompany(tenantSlug: string): number | null {
+    return this.config?.companies[tenantSlug] ?? null;
+  }
+
   companyFor(tenantSlug: string) {
     const companyId = this.settings().companies[tenantSlug];
     if (!companyId)
@@ -100,6 +105,27 @@ export class OdooClient {
       [db, uid, apiKey, model, method, args, { ...kwargs, context }],
       timeoutMs,
     );
+  }
+
+  // Chamada sem empresa fixa, na empresa padrão do usuário técnico. Só para
+  // administração da plataforma (criar a empresa de um novo tenant).
+  async call<T>(
+    model: string,
+    method: string,
+    args: unknown[],
+    kwargs: Record<string, unknown> = {},
+  ): Promise<T> {
+    const { db, apiKey } = this.settings();
+    const uid = await this.login();
+    return this.rpc<T>("object", "execute_kw", [
+      db,
+      uid,
+      apiKey,
+      model,
+      method,
+      args,
+      kwargs,
+    ]);
   }
 
   userId() {

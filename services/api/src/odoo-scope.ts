@@ -15,10 +15,12 @@ export class OdooScope {
   async company(req: AuthRequest) {
     const tenant = await this.db.tenant.findUnique({
       where: { id: req.principal.tenantId },
-      select: { slug: true },
+      select: { slug: true, odooCompanyId: true },
     });
     if (!tenant) throw new NotFoundException("Empresa não encontrada");
-    return this.odoo.companyFor(tenant.slug);
+    // Empresas criadas pelo painel do proprietário guardam a empresa do Odoo;
+    // as anteriores seguem o mapeamento ODOO_TENANT_COMPANIES.
+    return tenant.odooCompanyId ?? this.odoo.companyFor(tenant.slug);
   }
 
   audit(

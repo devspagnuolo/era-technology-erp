@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { Request, Response } from "express";
 import { Database } from "./database";
 import { OdooClient } from "./odoo";
+import { OdooProvisioning } from "./odoo-provision";
 import { Public, parse } from "./auth";
 import { rolePresets } from "../../../packages/shared/permissions";
 
@@ -24,7 +25,39 @@ const attempts = new Map<string, { count: number; until: number }>();
 
 @Injectable()
 export class PlatformService {
-  constructor(@Inject(Database) private db: Database, @Inject(OdooClient) private odoo: OdooClient) {}
+  constructor(
+    @Inject(Database) private db: Database,
+    @Inject(OdooClient) private odoo: OdooClient,
+    @Inject(OdooProvisioning) private provisioning?: OdooProvisioning,
+  ) {}
+  // Cria (ou reaproveita) a empresa do tenant no Odoo e guarda o vínculo. Uma
+  // falha não desfaz o cadastro ERA: a empresa fica "pendente no Odoo" e o
+  // proprietário tenta de novo pelo painel.
+  private async linkOdoo(req: Request, actor: string, tenant: { id: string; slug: string; name: string }) {
+    const mapped = this.odoo?.mappedCompany(tenant.slug);
+    if (mapped) return { odooCompanyId: mapped, odooError: null };
+    if (!this.provisioning?.available) return { odooCompanyId: null, odooError: "Integração Odoo não configurada" };
+    try {
+      const odooCompanyId = await this.provisioning.provision(tenant);
+      await this.db.tenant.update({ where: { id: tenant.id }, data: { odooCompanyId } });
+      await this.db.auditLog.create({ data: {
+        tenantId: tenant.id, actorId: actor, ip: req.ip ?? "unknown", module: "platform",
+        action: "link_odoo_company", recordId: tenant.id, after: { odooCompanyId },
+      } });
+      return { odooCompanyId, odooError: null };
+    } catch (error) {
+      return { odooCompanyId: null, odooError: error instanceof Error ? error.message : "Falha ao criar a empresa no Odoo" };
+    }
+  }
+  async linkCompany(req: Request, id: string) {
+    const actor = this.authorize(req, true);
+    if (!z.string().uuid().safeParse(id).success) throw new BadRequestException("Empresa inválida");
+    const tenant = await this.db.tenant.findUnique({ where: { id }, select: { id: true, slug: true, name: true, odooCompanyId: true } });
+    if (!tenant) throw new NotFoundException("Empresa não encontrada");
+    const linked = this.withOdoo(tenant).odooCompanyId;
+    if (linked) return { odooCompanyId: linked, odooError: null };
+    return this.linkOdoo(req, actor, tenant);
+  }
   private secret() {
     const secret = process.env.PLATFORM_SESSION_SECRET;
     if (!secret || secret.length < 32) throw new UnauthorizedException("Acesso administrativo indisponível");
@@ -106,7 +139,7 @@ export class PlatformService {
   async overview(req: Request) {
     this.authorize(req);
     const [companies, total, activeCompanies, suspendedCompanies, activeTenants] = await Promise.all([
-      this.db.tenant.findMany({ select: { id: true, name: true, slug: true, active: true, createdAt: true, users: { where: { role: "TENANT_ADMIN" }, select: { name: true, email: true, active: true }, take: 1 } }, orderBy: { createdAt: "desc" }, take: 200 }),
+      this.db.tenant.findMany({ select: { id: true, name: true, slug: true, active: true, createdAt: true, odooCompanyId: true, users: { where: { role: "TENANT_ADMIN" }, select: { name: true, email: true, active: true }, take: 1 } }, orderBy: { createdAt: "desc" }, take: 200 }),
       this.db.tenant.count(),
       this.db.tenant.count({ where: { active: true } }),
       this.db.tenant.count({ where: { active: false } }),
@@ -125,7 +158,7 @@ export class PlatformService {
         .catch(() => ({ status: "unavailable" as const }));
     const names = new Map(companies.map(c => [c.id, c.name]));
     return {
-      companies,
+      companies: companies.map(c => this.withOdoo(c)),
       odoo,
       metrics: { companies: total, activeCompanies, suspendedCompanies, activeUsers: users, activeSessions: sessions },
       recentActivity: activity.map(a => ({ id: a.id, company: names.get(a.tenantId) ?? "Empresa removida",
@@ -133,20 +166,26 @@ export class PlatformService {
       generatedAt: now.toISOString(),
     };
   }
+  // Empresas antigas seguem vinculadas por ODOO_TENANT_COMPANIES.
+  private withOdoo<T extends { slug: string; odooCompanyId: number | null }>(tenant: T) {
+    return { ...tenant, odooCompanyId: tenant.odooCompanyId ?? this.odoo?.mappedCompany(tenant.slug) ?? null };
+  }
   async companies(req: Request) {
     this.authorize(req);
-    return this.db.tenant.findMany({
-      select: { id: true, name: true, slug: true, active: true, createdAt: true,
+    const companies = await this.db.tenant.findMany({
+      select: { id: true, name: true, slug: true, active: true, createdAt: true, odooCompanyId: true,
         users: { where: { role: "TENANT_ADMIN" }, select: { name: true, email: true, active: true }, take: 1 } },
       orderBy: { createdAt: "desc" }, take: 200,
     });
+    return companies.map(c => this.withOdoo(c));
   }
   async create(req: Request, raw: unknown) {
     const actor = this.authorize(req, true);
     const input = parse(companyInput, raw);
     const passwordHash = await hash(input.adminPassword, 12);
+    let created: { id: string; name: string; slug: string; active: boolean; createdAt: Date };
     try {
-      return await this.db.$transaction(async tx => {
+      created = await this.db.$transaction(async tx => {
         const tenant = await tx.tenant.create({ data: { name: input.name, slug: input.slug } });
         await tx.user.create({ data: {
           tenantId: tenant.id, name: input.adminName, email: input.adminEmail,
@@ -164,6 +203,7 @@ export class PlatformService {
         throw new ConflictException("Empresa ou e-mail já cadastrado");
       throw error;
     }
+    return { ...created, ...(await this.linkOdoo(req, actor, created)) };
   }
   async update(req: Request, id: string, raw: unknown) {
     const actor = this.authorize(req, true);
@@ -173,7 +213,7 @@ export class PlatformService {
       const before = await tx.tenant.findUnique({ where: { id }, select: { id: true, name: true, slug: true, active: true } });
       if (!before) throw new NotFoundException("Empresa não encontrada");
       const tenant = await tx.tenant.update({ where: { id }, data: input,
-        select: { id: true, name: true, slug: true, active: true, createdAt: true } });
+        select: { id: true, name: true, slug: true, active: true, createdAt: true, odooCompanyId: true } });
       if (input.active === false)
         await tx.session.updateMany({ where: { tenantId: id, revokedAt: null }, data: { revokedAt: new Date() } });
       await tx.auditLog.create({ data: {
@@ -200,6 +240,9 @@ export class PlatformController {
   @Get("overview") overview(@Req() req: Request) { return this.platform.overview(req); }
   @Get("companies") companies(@Req() req: Request) { return this.platform.companies(req); }
   @Post("companies") create(@Req() req: Request, @Body() body: unknown) { return this.platform.create(req, body); }
+  @Post("companies/:id/odoo") linkOdoo(@Req() req: Request, @Param("id") id: string) {
+    return this.platform.linkCompany(req, id);
+  }
   @Patch("companies/:id") update(@Req() req: Request, @Param("id") id: string, @Body() body: unknown) {
     return this.platform.update(req, id, body);
   }
