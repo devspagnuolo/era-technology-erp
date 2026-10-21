@@ -273,7 +273,7 @@ export function EraDashboard({
             </button>
           </div>
         </div>
-        <div className="era-welcome-footnote">ERP ERA · Odoo Community como núcleo operacional</div>
+        <div className="era-welcome-footnote">Selecione uma rotina para consultar registros ou iniciar uma operação.</div>
       </section>
 
       <div className="era-section-heading">
@@ -305,33 +305,33 @@ export function EraDashboard({
       <div className="era-section-heading era-lower-heading">
         <div>
           <span className="era-eyebrow">CONFIGURAÇÃO</span>
-          <h2>Administração inicial</h2>
+          <h2>Organize sua operação</h2>
         </div>
-        <span className="era-build-badge">AMBIENTE DE TESTES</span>
+        
       </div>
       <section className="era-setup-grid">
         <button className="era-setup-card" onClick={() => onViewChange("modules")}>
           <span className="era-setup-number">01</span>
           <strong>Explore os módulos</strong>
-          <span>Todos os aplicativos do Odoo funcionam aqui, com os mesmos menus.</span>
+          <span>Encontre os processos por área e acesse os módulos disponíveis para sua operação.</span>
           <span className="era-setup-action">Ver central de módulos <ArrowUpRight size={14} /></span>
         </button>
         <button className="era-setup-card" onClick={() => onViewChange("products")}>
           <span className="era-setup-number">02</span>
           <strong>Produtos e estoque</strong>
-          <span>Consulte e cadastre produtos na ERA; tudo é gravado no Odoo.</span>
+          <span>Consulte os itens, unidades e preços utilizados nas rotinas comerciais.</span>
           <span className="era-setup-action">Abrir produtos <ArrowUpRight size={14} /></span>
         </button>
         <div className="era-setup-note">
           <CircleHelp size={19} />
           <div>
-            <strong>Sem dados definitivos por enquanto</strong>
-            <span>Use informações fictícias durante a construção. Dados fiscais e da empresa podem esperar.</span>
+            <strong>Antes de confirmar uma operação</strong>
+            <span>Confira os campos obrigatórios e os dados da empresa antes de confirmar pedidos, faturas ou movimentações.</span>
           </div>
         </div>
       </section>
       <p className="era-integration-note">
-        O Odoo é o motor operacional e a fonte oficial dos cadastros. Tudo é feito pela ERA: cadastros, aprovações, relatórios, instalação de aplicativos e configurações.
+        O Odoo é o motor operacional e a fonte oficial dos cadastros. A disponibilidade das rotinas depende dos módulos instalados e das permissões de acesso.
       </p>
     </div>
   );
@@ -387,7 +387,7 @@ export function EraModuleCenter({
         <div>
           <span className="era-eyebrow">CENTRAL ERA</span>
           <h1>Módulos</h1>
-          <p>Todos os processos da empresa, com o Odoo como motor por trás.</p>
+          <p>Encontre cadastros, operações e configurações por área de trabalho.</p>
         </div>
         <button type="button" className="era-primary-link" onClick={() => onRun({})}>
           Todos os aplicativos <ArrowUpRight size={16} />
