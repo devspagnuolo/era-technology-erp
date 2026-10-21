@@ -32,6 +32,7 @@ import {
 import { OdooScope } from "../services/api/src/odoo-scope";
 import { OdooForms } from "../services/api/src/odoo-form";
 import { OdooRuntime } from "../services/api/src/odoo-runtime";
+import { OdooProvisioning } from "../services/api/src/odoo-provision";
 import { OdooStatusController } from "../services/api/src/odoo-status";
 import { Database } from "../services/api/src/database";
 import { AuthRequest } from "../services/api/src/auth";
@@ -1161,12 +1162,56 @@ test(
     assert.ok(Array.isArray(messages));
 
     // Modelos técnicos e configurações globais ficam fechados.
-    await assert.rejects(() => run.form(req, "res.users", {}), ForbiddenException);
+    await assert.rejects(
+      () => run.form(req, "res.users", {}),
+      ForbiddenException,
+    );
     await assert.rejects(
       () => run.form(req, "res.config.settings", {}),
       ForbiddenException,
     );
     const apps = await run.apps(req, { filter: "installed" });
     assert.ok(apps.some((m) => m.name === "account"));
+  },
+);
+
+test(
+  "empresa nova da ERA: criada no Odoo uma única vez, com depósito e acesso da integração",
+  { skip: !ready },
+  async () => {
+    const companies = parseCompanies(env.TEST_ODOO_COMPANIES!);
+    const odoo = scopeFor(fakeDb([]), companies).odoo;
+    const provisioning = new OdooProvisioning(odoo);
+    const slug = "cliente-" + randomUUID().slice(0, 8);
+    const companyId = await provisioning.provision({
+      slug,
+      name: "Cliente " + slug,
+    });
+    assert.equal(
+      await provisioning.provision({ slug, name: "Outro nome" }),
+      companyId,
+    );
+    const [company] = await odoo.execute<
+      Array<{ name: string; currency_id: Ref; chart_template: string }>
+    >(companyId, "res.company", "read", [
+      [companyId],
+      ["name", "currency_id", "chart_template"],
+    ]);
+    assert.equal(company.name, "Cliente " + slug);
+    assert.equal(company.chart_template, "br");
+    assert.equal(
+      await odoo.execute<number>(companyId, "stock.warehouse", "search_count", [
+        [["company_id", "=", companyId]],
+      ]),
+      1,
+    );
+    // A ERA já consegue gravar nessa empresa pelo usuário técnico.
+    const partner = await odoo.execute<number>(
+      companyId,
+      "res.partner",
+      "create",
+      [{ name: "Primeiro cliente " + slug, company_id: companyId }],
+    );
+    assert.ok(partner);
   },
 );

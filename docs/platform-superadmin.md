@@ -28,13 +28,15 @@ As três chaves devem estar presentes no serviço de API. Ao salvar/alterar a se
 
 1. Acessar `/` e autenticar com o e-mail do proprietário.
 2. Em **Nova empresa**, preencher nome, identificador, administrador inicial e senha inicial com pelo menos 12 caracteres. A senha inicial é enviada apenas para criar o hash do administrador e não aparece na listagem.
-3. O administrador poderá entrar em `/<slug>` no ERA. O tenant não é provisionado automaticamente no Odoo; mapear sua empresa Odoo separadamente antes de habilitar módulos operacionais.
+3. O administrador poderá entrar em `/<slug>` no ERA. Ao cadastrar, a ERA cria também a empresa no Odoo (`res.company`, país Brasil, que traz o plano de contas brasileiro quando a localização está instalada), dá acesso a ela ao usuário técnico da integração e cria um depósito se o Estoque estiver instalado. O vínculo fica em `Tenant.odooCompanyId` e a empresa no Odoo recebe o identificador `era.tenant_<slug>`, o que evita duplicar em novas tentativas. Se o Odoo falhar, o cadastro ERA continua valendo, a coluna **Odoo** mostra "Pendente" e o botão **Criar no Odoo** tenta de novo (`POST /v1/platform/companies/:id/odoo`). Empresas antigas continuam vinculadas por `ODOO_TENANT_COMPANIES`.
+
+   Os usuários da empresa entram só na ERA: não é criado usuário no Odoo para eles. A API conversa com o Odoo pelo usuário técnico, sempre limitada à empresa do tenant, e as permissões de cada pessoa são as da ERA.
 4. **Suspender** bloqueia login e sessões ERA da empresa; **Reativar** restaura a possibilidade de login, sem criar nova conta.
 5. Para trocar a senha global, atualizar `PLATFORM_ADMIN_PASSWORD` no Render. Para encerrar sessões globais, rotacionar `PLATFORM_SESSION_SECRET`.
 
 ## Limites e próximos controles
 
-O painel gerencia cadastro e acesso ERA. Não implementa cobrança, contratos financeiros, provisionamento Odoo, e-mail de convite ou recuperação de senha. O limite de tentativas é por instância; antes de uso comercial com clientes reais, adicionar limite distribuído, MFA do proprietário, teste de backup/restauração e revisão de isolamento Odoo. O painel lista até 200 tenants; paginação será necessária ao crescer.
+O painel gerencia cadastro e acesso ERA. Não implementa cobrança, contratos financeiros, e-mail de convite ou recuperação de senha. O limite de tentativas é por instância; antes de uso comercial com clientes reais, adicionar limite distribuído, MFA do proprietário, teste de backup/restauração e revisão de isolamento Odoo. O painel lista até 200 tenants; paginação será necessária ao crescer.
 
 Não inserir senhas, chaves ou dados operacionais de clientes no GitHub. O banco ERA e Odoo continuam separados. Odoo mantém a fonte dos dados operacionais e suas próprias permissões multiempresa.
 

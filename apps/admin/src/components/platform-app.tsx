@@ -3,13 +3,13 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { EraLogo } from "./era-logo";
 import styles from "./platform-app.module.css";
 
-type Company = { id: string; name: string; slug: string; active: boolean; createdAt: string; users?: { name: string; email: string; active: boolean }[] };
+type Company = { id: string; name: string; slug: string; active: boolean; createdAt: string; odooCompanyId?: number | null; users?: { name: string; email: string; active: boolean }[] };
 type Owner = { email: string };
 type Activity = { id: string; company: string; actor: string; action: string; createdAt: string };
 type Overview = { odoo: { status: "connected" | "unconfigured" | "unavailable"; version?: string }; metrics: { companies: number; activeCompanies: number; suspendedCompanies: number; activeUsers: number; activeSessions: number }; recentActivity: Activity[]; companies: Company[]; generatedAt: string };
 type CreateForm = { name: string; slug: string; adminName: string; adminEmail: string; adminPassword: string };
 const blank: CreateForm = { name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" };
-const labels: Record<string, string> = { create_company: "Empresa cadastrada", update_company: "Cadastro atualizado", activate_company: "Acesso reativado", suspend_company: "Acesso suspenso" };
+const labels: Record<string, string> = { create_company: "Empresa cadastrada", update_company: "Cadastro atualizado", activate_company: "Acesso reativado", suspend_company: "Acesso suspenso", link_odoo_company: "Empresa criada no Odoo" };
 const date = (value: string) => new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 async function platform<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -57,8 +57,10 @@ export function PlatformApp() {
   async function createCompany(event: FormEvent) {
     event.preventDefault(); setError(""); setNotice(""); setBusy(true);
     try {
-      await platform("companies", { method: "POST", body: JSON.stringify(form) });
-      setForm(blank); setCreating(false); await refresh(); setNotice("Empresa cadastrada. O administrador poderá acessar pelo endereço indicado.");
+      const created = await platform<{ odooCompanyId: number | null; odooError: string | null }>("companies", { method: "POST", body: JSON.stringify(form) });
+      setForm(blank); setCreating(false); await refresh();
+      if (created.odooCompanyId) setNotice("Empresa cadastrada e criada no Odoo, com acesso a todos os módulos. O administrador já pode entrar pelo endereço indicado.");
+      else { setNotice("Empresa cadastrada na ERA."); setError("Não foi possível criar a empresa no Odoo: " + (created.odooError ?? "erro desconhecido") + ". Use “Criar no Odoo” na lista para tentar de novo."); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao cadastrar empresa"); }
     finally { setBusy(false); }
   }
@@ -66,6 +68,16 @@ export function PlatformApp() {
     setError(""); setNotice(""); setBusy(true);
     try { await platform("companies/" + encodeURIComponent(company.id), { method: "PATCH", body: JSON.stringify(change) }); await refresh(); setNotice("Cadastro atualizado."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao atualizar empresa"); }
+    finally { setBusy(false); }
+  }
+  async function linkOdoo(company: Company) {
+    setError(""); setNotice(""); setBusy(true);
+    try {
+      const result = await platform<{ odooCompanyId: number | null; odooError: string | null }>("companies/" + encodeURIComponent(company.id) + "/odoo", { method: "POST" });
+      await refresh();
+      if (result.odooCompanyId) setNotice(company.name + " foi criada no Odoo e já pode usar os módulos.");
+      else setError("Não foi possível criar a empresa no Odoo: " + (result.odooError ?? "erro desconhecido"));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Falha ao criar no Odoo"); }
     finally { setBusy(false); }
   }
   const companies = overview?.companies ?? [];
@@ -105,7 +117,7 @@ export function PlatformApp() {
             <article><span>SESSÕES VÁLIDAS</span><strong>{m?.activeSessions ?? 0}</strong><small>Sessões ERA dentro da validade</small></article>
           </div>
           <div className={styles.columns}><section className={styles.panel}><div className={styles.panelHead}><div><h2>Empresas recentes</h2><p>Situação das contas cadastradas.</p></div><button className={styles.textButton} onClick={() => setSection("companies")}>Ver todas →</button></div>
-              <CompanyTable items={companies.slice(0, 6)} busy={busy} onEdit={changeCompany} /></section><ActivityPanel items={overview?.recentActivity ?? []} /></div>
+              <CompanyTable items={companies.slice(0, 6)} busy={busy} onEdit={changeCompany} onLink={linkOdoo} /></section><ActivityPanel items={overview?.recentActivity ?? []} /></div>
           <section className={styles.systemPanel}><div><span className={styles.liveDot} /><strong>Banco ERA consultado</strong><small>Atualizado em {overview?.generatedAt ? date(overview.generatedAt) : "—"}</small></div><div className={styles.odooStatus}><strong>Integração Odoo</strong><span className={overview?.odoo.status === "connected" ? styles.connected : styles.disconnected}>{overview?.odoo.status === "connected" ? "Conectada" : overview?.odoo.status === "unconfigured" ? "Não configurada" : "Indisponível"}</span>{overview?.odoo.version && <small>Versão {overview.odoo.version}</small>}</div></section>
         </>}
         {section === "companies" && <>
@@ -120,9 +132,9 @@ export function PlatformApp() {
               <label>Nome do administrador<input value={form.adminName} onChange={e => setForm({ ...form, adminName: e.target.value })} required /></label>
               <label>E-mail do administrador<input type="email" value={form.adminEmail} onChange={e => setForm({ ...form, adminEmail: e.target.value })} required /></label>
               <label>Senha inicial do administrador<input type="password" autoComplete="new-password" value={form.adminPassword} onChange={e => setForm({ ...form, adminPassword: e.target.value })} minLength={12} required /></label>
-              <p>O cadastro ERA é criado aqui. A configuração operacional no Odoo é uma etapa separada. A senha é armazenada como hash.</p>
+              <p>A empresa é criada na ERA e no Odoo ao mesmo tempo, já com acesso a todos os módulos instalados. Os usuários entram só pela ERA. A senha é armazenada como hash.</p>
               <button disabled={busy} type="submit">{busy ? "Salvando…" : "Cadastrar empresa"}</button></form>}
-            <CompanyTable items={visible} busy={busy} onEdit={changeCompany} /></section>
+            <CompanyTable items={visible} busy={busy} onEdit={changeCompany} onLink={linkOdoo} /></section>
         </>}
         {section === "activity" && <><div className={styles.pageTitle}><div><p className={styles.kicker}>AUDITORIA</p><h1>Atividade administrativa</h1><p>Alterações recentes nos cadastros e acessos dos clientes.</p></div>
           <button className={styles.secondary} onClick={() => void refresh()}>Atualizar atividade</button></div><ActivityPanel items={overview?.recentActivity ?? []} expanded /></>}
@@ -132,12 +144,14 @@ export function PlatformApp() {
   </div>;
 }
 
-function CompanyTable({ items, busy, onEdit }: { items: Company[]; busy: boolean; onEdit: (company: Company, change: { name?: string; active?: boolean }) => Promise<void> }) {
+function CompanyTable({ items, busy, onEdit, onLink }: { items: Company[]; busy: boolean; onEdit: (company: Company, change: { name?: string; active?: boolean }) => Promise<void>; onLink: (company: Company) => Promise<void> }) {
   return items.length === 0 ? <p className={styles.empty}>Nenhuma empresa encontrada.</p> :
-    <div className={styles.tableWrap}><table><thead><tr><th>EMPRESA</th><th>RESPONSÁVEL</th><th>CADASTRO</th><th>SITUAÇÃO</th><th>AÇÕES</th></tr></thead><tbody>
+    <div className={styles.tableWrap}><table><thead><tr><th>EMPRESA</th><th>RESPONSÁVEL</th><th>CADASTRO</th><th>SITUAÇÃO</th><th>ODOO</th><th>AÇÕES</th></tr></thead><tbody>
       {items.map(c => <tr key={c.id}><td><strong>{c.name}</strong><small><a href={"/" + c.slug} target="_blank" rel="noreferrer">erp.eratechnology.com.br/{c.slug}</a></small></td>
         <td>{c.users?.[0]?.email ?? "Não informado"}</td><td>{new Date(c.createdAt).toLocaleDateString("pt-BR")}</td>
-        <td><span className={c.active ? styles.active : styles.inactive}>{c.active ? "Ativa" : "Suspensa"}</span></td><td className={styles.actions}>
+        <td><span className={c.active ? styles.active : styles.inactive}>{c.active ? "Ativa" : "Suspensa"}</span></td>
+        <td>{c.odooCompanyId ? <span className={styles.active}>Criada no Odoo</span> : <span className={styles.inactive}>Pendente</span>}</td><td className={styles.actions}>
+          {!c.odooCompanyId && <button className={styles.subtle} disabled={busy} onClick={() => void onLink(c)}>Criar no Odoo</button>}
           <button className={styles.subtle} disabled={busy} onClick={() => { const name = prompt("Nome da empresa", c.name); if (name && name.trim() !== c.name) void onEdit(c, { name: name.trim() }); }}>Editar</button>
           <button className={styles.subtle} disabled={busy} onClick={() => { if (confirm(c.active ? "Suspender acesso desta empresa?" : "Reativar acesso desta empresa?")) void onEdit(c, { active: !c.active }); }}>{c.active ? "Suspender" : "Reativar"}</button>
         </td></tr>)}</tbody></table></div>;
