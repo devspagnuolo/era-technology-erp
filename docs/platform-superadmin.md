@@ -31,12 +31,16 @@ As três chaves devem estar presentes no serviço de API. Ao salvar/alterar a se
 3. O administrador poderá entrar em `/<slug>` no ERA. Ao cadastrar, a ERA cria também a empresa no Odoo (`res.company`, país Brasil, que traz o plano de contas brasileiro quando a localização está instalada), dá acesso a ela ao usuário técnico da integração e cria um depósito se o Estoque estiver instalado. O vínculo fica em `Tenant.odooCompanyId` e a empresa no Odoo recebe o identificador `era.tenant_<slug>`, o que evita duplicar em novas tentativas. Se o Odoo falhar, o cadastro ERA continua valendo, a coluna **Odoo** mostra "Pendente" e o botão **Criar no Odoo** tenta de novo (`POST /v1/platform/companies/:id/odoo`). Empresas antigas continuam vinculadas por `ODOO_TENANT_COMPANIES`.
 
    Os usuários da empresa entram só na ERA: não é criado usuário no Odoo para eles. A API conversa com o Odoo pelo usuário técnico, sempre limitada à empresa do tenant, e as permissões de cada pessoa são as da ERA.
-4. **Suspender** bloqueia login e sessões ERA da empresa; **Reativar** restaura a possibilidade de login, sem criar nova conta.
-5. Para trocar a senha global, atualizar `PLATFORM_ADMIN_PASSWORD` no Render. Para encerrar sessões globais, rotacionar `PLATFORM_SESSION_SECRET`.
+4. **Gerenciar** (ou o nome da empresa na lista) abre o detalhe da empresa, com três abas:
+   - **Dados da empresa**: nome e endereço de acesso na ERA (trocar o endereço exige confirmação; o nome também é gravado na empresa do Odoo) e o cadastro completo da empresa no Odoo, com a mesma tela do Odoo (CNPJ, razão social, IE/IM, endereço, contatos e as abas fiscais da localização brasileira). Hierarquia e moeda ficam travadas.
+   - **Usuários e acessos**: criar usuário (a ERA gera uma senha temporária), editar nome, e-mail e perfil, bloquear/desbloquear e **Redefinir senha**. A senha temporária aparece uma única vez para o proprietário, só o hash é gravado, as sessões do usuário são encerradas e, no próximo acesso, a ERA obriga a definir uma senha pessoal (`POST /v1/auth/password`); até lá a API recusa as demais chamadas. Trocar e-mail ou perfil também encerra as sessões. A empresa nunca fica sem um administrador ativo.
+   - **Auditoria**: as últimas 100 alterações da empresa (administração ERA e usuários), com autor, IP, motivo e o antes/depois.
+5. **Suspender acesso**, **Bloquear usuário**, **Redefinir senha** e **Encerrar sessões** exigem um motivo, gravado na auditoria. Suspender bloqueia login e sessões ERA da empresa; **Reativar acesso** restaura a possibilidade de login, sem criar nova conta.
+6. Para trocar a senha global, atualizar `PLATFORM_ADMIN_PASSWORD` no Render. Para encerrar sessões globais, rotacionar `PLATFORM_SESSION_SECRET`.
 
 ## Limites e próximos controles
 
-O painel gerencia cadastro e acesso ERA. Não implementa cobrança, contratos financeiros, e-mail de convite ou recuperação de senha. O limite de tentativas é por instância; antes de uso comercial com clientes reais, adicionar limite distribuído, MFA do proprietário, teste de backup/restauração e revisão de isolamento Odoo. O painel lista até 200 tenants; paginação será necessária ao crescer.
+O painel gerencia cadastro e acesso ERA. Não implementa cobrança, contratos financeiros, e-mail de convite ou recuperação de senha por e-mail (a senha temporária é repassada pelo proprietário). O limite de tentativas é por instância; antes de uso comercial com clientes reais, adicionar limite distribuído, MFA do proprietário, teste de backup/restauração e revisão de isolamento Odoo. O painel lista até 200 tenants; paginação será necessária ao crescer.
 
 Não inserir senhas, chaves ou dados operacionais de clientes no GitHub. O banco ERA e Odoo continuam separados. Odoo mantém a fonte dos dados operacionais e suas próprias permissões multiempresa.
 

@@ -2846,3 +2846,12 @@ button, a, input, select, textarea { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .era-shell *, .login-erp * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+.login.login-erp .login-link {
+  background: none;
+  border: 0;
+  color: #0b6fb8;
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 4px;
+  text-decoration: underline;
+}

@@ -57,7 +57,12 @@ export type FormSchema = {
 };
 export type Values = Record<string, unknown>;
 type Ref = { id: number; name: string };
-type Scope = { endpoint: string; recordId?: number };
+type Scope = {
+  endpoint: string;
+  recordId?: number;
+  // Outra forma de chamar a API (ex.: painel do proprietário, por cookie).
+  request?: <T>(path: string, init?: RequestInit) => Promise<T>;
+};
 
 const isRef = (v: unknown): v is Ref =>
   !!v && typeof v === "object" && "id" in (v as object);
@@ -165,9 +170,10 @@ export function OdooFormView({
       setWarning(null);
       try {
         const query = scope.recordId ? "?id=" + scope.recordId : "";
+        const call = scope.request ?? api;
         if (line) {
           const rows = (next[field] as Values[]) ?? [];
-          const result = await api<{ line: Values }>(
+          const result = await call<{ line: Values }>(
             scope.endpoint + "/onchange" + query,
             {
               method: "POST",
@@ -187,7 +193,7 @@ export function OdooFormView({
           if (schema.fields[field].onChange) await recompute(field, merged);
           return;
         }
-        const result = await api<{ values: Values }>(
+        const result = await call<{ values: Values }>(
           scope.endpoint + "/onchange" + query,
           {
             method: "POST",
@@ -207,7 +213,7 @@ export function OdooFormView({
         setSyncing(false);
       }
     },
-    [schema, scope.endpoint, scope.recordId, onChange],
+    [schema, scope.endpoint, scope.recordId, scope.request, onChange],
   );
 
   const set = (def: FieldDef, value: unknown) => {
@@ -618,7 +624,7 @@ function useLookup(
   return useQuery({
     queryKey: ["odoo-lookup", scope.endpoint, line?.field, def.name, term],
     queryFn: () =>
-      api<Ref[]>(scope.endpoint + "/lookup", {
+      (scope.request ?? api)<Ref[]>(scope.endpoint + "/lookup", {
         method: "POST",
         body: JSON.stringify(
           line

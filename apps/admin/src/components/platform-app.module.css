@@ -59,3 +59,14 @@
 .footer{font-size:12px;color:#526581}
 .shell button:focus-visible,.login button:focus-visible,.shell a:focus-visible{outline:3px solid #2998ec;outline-offset:3px}
 @media(max-width:760px){.sidebar{overflow:visible}.navItem,.navActive{width:auto;flex:1 0 auto}.topbar{position:static}.pageTitle{flex-wrap:wrap}.filters{flex-wrap:wrap}.filters input{flex:1 1 180px}.stats article span{font-size:10px}.stats article{padding:14px}.systemPanel>div{flex-wrap:wrap}}
+
+/* Detalhe da empresa: governança do proprietário. */
+.linkName{padding:0;border:0;background:none;color:#102448;font:700 13px "Segoe UI",Arial,sans-serif;cursor:pointer;text-align:left}.linkName:hover{color:#075ccf;text-decoration:underline}
+.tabs{display:flex;gap:4px;margin:4px 0 14px;border-bottom:1px solid #dbe5f0;overflow-x:auto}.tab,.tabActive{padding:10px 14px;border:0;border-bottom:3px solid transparent;background:none;color:#526581;font:600 13px "Segoe UI",Arial,sans-serif;cursor:pointer;white-space:nowrap}.tabActive{color:#075ccf;border-bottom-color:#075ccf}
+.content .panel+.panel{margin-top:14px}
+.form select{width:100%;min-height:40px;padding:9px 11px;border:1px solid #cad8e8;border-radius:7px;background:#fff;color:#102448;font:13px "Segoe UI",Arial,sans-serif}
+.secret{display:flex;justify-content:space-between;gap:14px;align-items:center;margin:0 0 14px;padding:14px 16px;border:1px solid #f0d18a;border-radius:8px;background:#fff8e6;color:#5d4510}.secret>div:first-child{display:grid;gap:6px}.secret code{font:700 18px ui-monospace,Menlo,monospace;letter-spacing:1px;color:#102448;user-select:all}.secret small{font-size:12px}
+.ask{display:grid;gap:10px;margin:0 0 14px;padding:16px;border:1px solid #f1c3c9;border-radius:8px;background:#fff6f7}.ask label{display:grid;gap:6px;font-size:13px;font-weight:700;color:#19375d}.ask input{min-height:38px;padding:8px 10px;border:1px solid #cad8e8;border-radius:7px;font:13px "Segoe UI",Arial,sans-serif}
+.diff{max-width:520px;max-height:260px;overflow:auto;margin:6px 0 0;padding:8px;border-radius:6px;background:#f4f7fb;font:11px ui-monospace,Menlo,monospace;white-space:pre-wrap}
+.odooForm{display:grid;gap:14px}
+@media(max-width:760px){.secret{flex-direction:column;align-items:flex-start}}
