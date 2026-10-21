@@ -339,10 +339,18 @@ function Catalog({ tenantSlug }: { tenantSlug?: string }) {
       permission: "odoo:read",
     });
   }
-  const normalizedNavQuery = navQuery.trim().toLocaleLowerCase("pt-BR");
+  const normalizeMenu = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const normalizedNavQuery = normalizeMenu(navQuery.trim());
+  const matchesMenu = (label: string, group: string) => !normalizedNavQuery || normalizeMenu(label + " " + group).includes(normalizedNavQuery);
+  const hasMenuResults = navigation.some(group => group.items.some(item =>
+    (!item.permission || permissions.includes(item.permission)) && matchesMenu(item.label, group.label)));
+
   return (
-    <div className="shell era-shell">
-      <aside className={mobileNavOpen ? "era-sidebar is-open" : "era-sidebar"}>
+    <div className="shell era-shell" onKeyDown={(event) => {
+      if (event.key === "Escape") { setMobileNavOpen(false); setNavQuery(""); }
+    }}>
+      <a href="#era-main-content" className="era-skip-link">Ir para o conteúdo</a>
+      <aside id="era-main-navigation" className={mobileNavOpen ? "era-sidebar is-open" : "era-sidebar"}>
         <div className="era-brand"><EraLogo className="sidebar-logo" /></div>
         <div className="workspace-label">MENU PRINCIPAL <span>ERP</span></div>
         <label className="era-nav-search">
@@ -354,7 +362,7 @@ function Catalog({ tenantSlug }: { tenantSlug?: string }) {
           {navigation.map((group) => {
             const items = group.items.filter((item) =>
               (!item.permission || permissions.includes(item.permission)) &&
-              (!normalizedNavQuery || item.label.toLocaleLowerCase("pt-BR").includes(normalizedNavQuery)),
+              matchesMenu(item.label, group.label),
             );
             if (!items.length) return null;
             const expanded = normalizedNavQuery ? true : !!expandedGroups[group.key];
@@ -394,6 +402,7 @@ function Catalog({ tenantSlug }: { tenantSlug?: string }) {
               </section>
             );
           })}
+          {!hasMenuResults && <p className="era-nav-empty" role="status">Nenhum menu encontrado. Busque por uma rotina ou área, como vendas ou estoque.</p>}
         </nav>
         <div className="sidebar-bottom">
           <div className="avatar">{user.data?.name?.slice(0, 1) || "E"}</div>
@@ -406,7 +415,7 @@ function Catalog({ tenantSlug }: { tenantSlug?: string }) {
       </aside>
       <div className="main">
         <header className="era-topbar">
-          <button type="button" className="era-mobile-menu" aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"} onClick={() => setMobileNavOpen((open) => !open)}>
+          <button type="button" className="era-mobile-menu" aria-controls="era-main-navigation" aria-expanded={mobileNavOpen} aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"} onClick={() => setMobileNavOpen((open) => !open)}>
             {mobileNavOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
           <div className="era-breadcrumb">
@@ -417,7 +426,7 @@ function Catalog({ tenantSlug }: { tenantSlug?: string }) {
             {user.data?.tenant.name || "Empresa de demonstração"}
           </div>
         </header>
-        <main className="content era-content" onClick={() => mobileNavOpen && setMobileNavOpen(false)}>
+        <main id="era-main-content" tabIndex={-1} className="content era-content" onClick={() => mobileNavOpen && setMobileNavOpen(false)}>
           {(user.error || logout.error) && (
             <p role="alert" className="error">
               {user.error?.message || logout.error?.message}

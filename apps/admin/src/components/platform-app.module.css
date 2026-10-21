@@ -32,3 +32,30 @@
 @media(max-width:760px){.shell{display:block}.sidebar{position:static;width:100%;height:auto;padding:10px 14px;gap:5px}.sidebar :global(.sidebar-logo){width:125px;height:60px}.sidebar p,.navCaption{display:none}.sidebar{display:flex;flex-direction:row;align-items:center;flex-wrap:wrap}.owner{position:absolute;right:14px;top:15px;margin:0}.owner span{display:none}.topbar{padding:13px 15px}.topbar>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topbar>div{font-size:0}.refresh{font-size:10px}.content{padding:20px 13px}.pageTitle{align-items:flex-start}.pageTitle h1{font-size:23px}.stats{gap:7px}.stats article{padding:12px}.stats article strong{font-size:23px}.stats article span{font-size:8px}.panel{padding:13px}.toolbar{align-items:flex-start;flex-direction:column}.filters{width:100%;min-width:0}.filters input{min-width:0}.filters select{min-width:118px}.form{grid-template-columns:1fr}.systemPanel{flex-direction:column}.actions{flex-direction:column}.tableWrap th,.tableWrap td{padding:9px 7px}}
 .odooStatus{display:flex;align-items:center;gap:9px}.odooStatus strong{color:#395675;font-size:11px}.connected{color:#197144;font-size:10px;font-weight:700}.disconnected{color:#a45e18;font-size:10px;font-weight:700}
 @media(max-width:760px){.odooStatus{flex-wrap:wrap}}
+
+/* Owner console aligned with the operational ERP. */
+.shell,.login,.center{font-family:"Segoe UI",Arial,sans-serif}
+.sidebar{background:#0e203d;flex-shrink:0;overflow-y:auto}
+.navItem,.navActive{min-height:42px;font-size:13px;border-radius:6px}
+.navActive{background:#075ccf;box-shadow:inset 3px 0 #30b9ff}
+.navCaption{color:#adbed5;font-size:10px}
+.topbar{min-height:60px;height:auto;position:sticky;top:0;z-index:5}
+.pageTitle h1{font-size:28px;letter-spacing:-.6px}
+.pageTitle p:not(.kicker){font-size:13px;line-height:1.6}
+.stats article{border-radius:8px;box-shadow:none;border-top:3px solid #075ccf;padding:20px}
+.stats article span{font-size:11px;letter-spacing:.3px}
+.stats small{font-size:12px;color:#526581}
+.panel{border-radius:8px;box-shadow:none}
+.panelHead p,.toolbar p{font-size:12px;line-height:1.5;color:#526581}
+.tableWrap th{font-size:11px;color:#526581}
+.tableWrap td{font-size:13px;padding-block:14px}
+.tableWrap td small{font-size:12px;color:#526581}
+.tableWrap tbody tr:hover{background:#f0f6ff}
+.activityList strong{font-size:13px}
+.activityList p,.activityList time{font-size:12px;color:#526581}
+.primary,.secondary,.subtle,.refresh{min-height:36px;font-size:12px}
+.form label{font-size:13px}.form p{font-size:12px;line-height:1.6}
+.systemPanel{font-size:12px;flex-wrap:wrap}.systemPanel strong,.odooStatus strong{font-size:12px}
+.footer{font-size:12px;color:#526581}
+.shell button:focus-visible,.login button:focus-visible,.shell a:focus-visible{outline:3px solid #2998ec;outline-offset:3px}
+@media(max-width:760px){.sidebar{overflow:visible}.navItem,.navActive{width:auto;flex:1 0 auto}.topbar{position:static}.pageTitle{flex-wrap:wrap}.filters{flex-wrap:wrap}.filters input{flex:1 1 180px}.stats article span{font-size:10px}.stats article{padding:14px}.systemPanel>div{flex-wrap:wrap}}
