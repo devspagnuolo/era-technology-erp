@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Param, Req, Res, Injectable, Inject, UnauthorizedException, ForbiddenException, BadRequestException, ConflictException, NotFoundException, HttpException } from "@nestjs/common";
+import { Body, Controller, Get, Post, Param, Req, Res, Injectable, Inject, UnauthorizedException, ForbiddenException, BadRequestException, ConflictException, NotFoundException, HttpException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
@@ -20,7 +20,6 @@ const companyInput = z.object({
   adminEmail: z.string().email().max(200).transform(v => v.toLowerCase()),
   adminPassword: z.string().min(12).refine(v => Buffer.byteLength(v, "utf8") <= 72, "Senha longa demais"),
 });
-const companyUpdate = z.object({ name: z.string().trim().min(2).max(120).optional(), active: z.boolean().optional() }).strict().refine(v => Object.keys(v).length > 0);
 const attempts = new Map<string, { count: number; until: number }>();
 
 @Injectable()
@@ -205,24 +204,8 @@ export class PlatformService {
     }
     return { ...created, ...(await this.linkOdoo(req, actor, created)) };
   }
-  async update(req: Request, id: string, raw: unknown) {
-    const actor = this.authorize(req, true);
-    if (!z.string().uuid().safeParse(id).success) throw new BadRequestException("Empresa inválida");
-    const input = parse(companyUpdate, raw);
-    return this.db.$transaction(async tx => {
-      const before = await tx.tenant.findUnique({ where: { id }, select: { id: true, name: true, slug: true, active: true } });
-      if (!before) throw new NotFoundException("Empresa não encontrada");
-      const tenant = await tx.tenant.update({ where: { id }, data: input,
-        select: { id: true, name: true, slug: true, active: true, createdAt: true, odooCompanyId: true } });
-      if (input.active === false)
-        await tx.session.updateMany({ where: { tenantId: id, revokedAt: null }, data: { revokedAt: new Date() } });
-      await tx.auditLog.create({ data: {
-        tenantId: id, actorId: actor, ip: req.ip ?? "unknown", module: "platform",
-        action: input.active === undefined ? "update_company" : input.active ? "activate_company" : "suspend_company",
-        recordId: id, before, after: { name: tenant.name, slug: tenant.slug, active: tenant.active },
-      } });
-      return tenant;
-    });
+  slugAllowed(slug: string) {
+    return !reserved.has(slug);
   }
 }
 
@@ -242,8 +225,5 @@ export class PlatformController {
   @Post("companies") create(@Req() req: Request, @Body() body: unknown) { return this.platform.create(req, body); }
   @Post("companies/:id/odoo") linkOdoo(@Req() req: Request, @Param("id") id: string) {
     return this.platform.linkCompany(req, id);
-  }
-  @Patch("companies/:id") update(@Req() req: Request, @Param("id") id: string, @Body() body: unknown) {
-    return this.platform.update(req, id, body);
   }
 }

@@ -67,6 +67,7 @@ type User = {
   id: string;
   name: string;
   permissions: string[];
+  mustChangePassword?: boolean;
   tenant: { name: string; slug: string };
 };
 export default function EraApp({ tenantSlug }: { tenantSlug?: string }) {
@@ -158,6 +159,101 @@ function Login({ tenantSlug }: { tenantSlug?: string }) {
       <svg className="login-wave" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
         <path d="M0 86 C300 94 530 66 760 56 C1040 36 1190 46 1440 72 L1440 120 L0 120 Z" fill="#079ff0" />
       </svg>
+    </main>
+  );
+}
+// Senha temporária definida pela administração ERA: troca antes de usar o sistema.
+function ChangePassword({
+  user,
+  onDone,
+  onLogout,
+}: {
+  user: User;
+  onDone: () => void;
+  onLogout: () => void;
+}) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [repeat, setRepeat] = useState("");
+  const change = useMutation({
+    mutationFn: () =>
+      api("auth/password", {
+        method: "POST",
+        body: JSON.stringify({ current, next }),
+      }),
+    onSuccess: onDone,
+  });
+  const mismatch = repeat.length > 0 && repeat !== next;
+  return (
+    <main className="login login-erp">
+      <header className="login-erp-header">
+        <EraLogo className="login-logo" />
+      </header>
+      <section className="login-form" aria-labelledby="password-title">
+        <div className="login-panel">
+          <div className="login-panel-heading">
+            <h1 id="password-title">Defina sua nova senha</h1>
+            <p>
+              {user.name}, sua senha atual é temporária. Escolha uma senha
+              pessoal para entrar em {user.tenant.name}.
+            </p>
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!mismatch) change.mutate();
+            }}
+          >
+            <label>
+              Senha temporária
+              <input
+                type="password"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+            <label>
+              Nova senha (mínimo de 12 caracteres)
+              <input
+                type="password"
+                value={next}
+                onChange={(e) => setNext(e.target.value)}
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+            </label>
+            <label>
+              Repita a nova senha
+              <input
+                type="password"
+                value={repeat}
+                onChange={(e) => setRepeat(e.target.value)}
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+            </label>
+            {(mismatch || change.error) && (
+              <p role="alert" className="error">
+                {mismatch ? "As senhas não conferem." : change.error?.message}
+              </p>
+            )}
+            <Button
+              type="submit"
+              className="w-full login-submit"
+              disabled={change.isPending || mismatch}
+            >
+              {change.isPending ? "Salvando…" : "Salvar nova senha"}
+            </Button>
+            <button type="button" className="login-link" onClick={onLogout}>
+              Sair
+            </button>
+          </form>
+        </div>
+      </section>
     </main>
   );
 }
@@ -254,6 +350,14 @@ function Catalog({ tenantSlug }: { tenantSlug?: string }) {
       </main>
     );
   }
+  if (user.data?.mustChangePassword)
+    return (
+      <ChangePassword
+        user={user.data}
+        onDone={() => void user.refetch()}
+        onLogout={() => logout.mutate()}
+      />
+    );
   const permissions = user.data?.permissions ?? [];
   // Telas da ERA que o usuário pode abrir (atalhos dos módulos).
   const viewPermissions: Partial<Record<EraView, string>> = {

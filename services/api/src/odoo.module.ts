@@ -80,6 +80,6 @@ import { OdooRuntime, OdooRuntimeController } from "./odoo-runtime";
     OdooExpenseReports,
     OdooRuntime,
   ],
-  exports: [OdooClient],
+  exports: [OdooClient, OdooForms],
 })
 export class OdooModule {}

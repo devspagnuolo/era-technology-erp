@@ -15,7 +15,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Reflector } from "@nestjs/core";
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { randomBytes, createHash } from "node:crypto";
 import { z } from "zod";
 import type { Request } from "express";
@@ -23,6 +23,8 @@ import { Database } from "./database";
 import { Principal, can } from "../../../packages/shared/security";
 export type AuthRequest = Request & { principal: Principal };
 export const Public = () => SetMetadata("public", true);
+// Rotas liberadas enquanto o usuário ainda usa a senha temporária.
+export const PendingPassword = () => SetMetadata("pendingPassword", true);
 export const Permission = (permission: string) =>
   SetMetadata("permission", permission);
 const digest = (token: string) =>
@@ -106,6 +108,57 @@ export class AuthService {
       refreshToken,
       expiresIn: 900,
     };
+  }
+  // Troca da própria senha; encerra as demais sessões do usuário.
+  async changePassword(req: AuthRequest, body: unknown) {
+    const { principal } = req;
+    const input = parse(
+      z.object({
+        current: z.string().min(1).max(256),
+        next: z
+          .string()
+          .min(12, "A nova senha deve ter ao menos 12 caracteres")
+          .refine(
+            (value) => Buffer.byteLength(value, "utf8") <= 72,
+            "Senha deve ter até 72 bytes",
+          ),
+      }),
+      body,
+    );
+    const user = await this.db.user.findFirst({
+      where: { id: principal.userId, tenantId: principal.tenantId },
+    });
+    if (!user || !(await compare(input.current, user.passwordHash)))
+      throw new BadRequestException("Senha atual incorreta");
+    if (input.current === input.next)
+      throw new BadRequestException("A nova senha deve ser diferente da atual");
+    const passwordHash = await hash(input.next, 12);
+    await this.db.$transaction([
+      this.db.user.update({
+        where: { tenantId_id: { tenantId: user.tenantId, id: user.id } },
+        data: { passwordHash, mustChangePassword: false },
+      }),
+      this.db.session.updateMany({
+        where: {
+          tenantId: user.tenantId,
+          userId: user.id,
+          revokedAt: null,
+          id: { not: principal.sessionId },
+        },
+        data: { revokedAt: new Date() },
+      }),
+      this.db.auditLog.create({
+        data: {
+          tenantId: user.tenantId,
+          actorId: user.id,
+          ip: req.ip ?? "unknown",
+          module: "users",
+          action: "change_password",
+          recordId: user.id,
+        },
+      }),
+    ]);
+    return { ok: true };
   }
   async refresh(body: unknown) {
     const { refreshToken } = parse(
@@ -200,6 +253,14 @@ export class AccessGuard implements CanActivate {
       sessionId: session.id,
       permissions: session.user.permissions,
     };
+    if (
+      session.user.mustChangePassword &&
+      !this.reflector.getAllAndOverride("pendingPassword", [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    )
+      throw new ForbiddenException("Troque a senha temporária para continuar");
     const permission = this.reflector.getAllAndOverride<string>("permission", [
       context.getHandler(),
       context.getClass(),
@@ -221,14 +282,20 @@ export class AuthController {
   @Public() @Post("refresh") refresh(@Body() body: unknown) {
     return this.auth.refresh(body);
   }
-  @Post("logout") async logout(@Req() req: AuthRequest) {
+  @PendingPassword() @Post("password") password(
+    @Req() req: AuthRequest,
+    @Body() body: unknown,
+  ) {
+    return this.auth.changePassword(req, body);
+  }
+  @PendingPassword() @Post("logout") async logout(@Req() req: AuthRequest) {
     await this.db.session.updateMany({
       where: { id: req.principal.sessionId, tenantId: req.principal.tenantId },
       data: { revokedAt: new Date() },
     });
     return { ok: true };
   }
-  @Get("me") me(@Req() req: AuthRequest) {
+  @PendingPassword() @Get("me") me(@Req() req: AuthRequest) {
     return this.db.user.findFirst({
       where: { id: req.principal.userId, tenantId: req.principal.tenantId },
       select: {
@@ -237,6 +304,7 @@ export class AuthController {
         email: true,
         role: true,
         permissions: true,
+        mustChangePassword: true,
         tenant: { select: { id: true, name: true, slug: true } },
       },
     });
